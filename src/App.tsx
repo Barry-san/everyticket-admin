@@ -1,14 +1,23 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Suspense } from "react";
 import { BrowserRouter } from "react-router-dom";
+import { AdminProvider } from "@/features/admin/store";
 import { AppRoutes } from "@/routes";
 
 function App() {
   return (
-    <QueryClientProvider client={new QueryClient()}>
-      <BrowserRouter>
-        <AppRoutes />
-      </BrowserRouter>
-    </QueryClientProvider>
+    <BrowserRouter>
+      <AdminProvider>
+        <Suspense
+          fallback={
+            <div className="access-screen" role="status">
+              Loading Everyticket…
+            </div>
+          }
+        >
+          <AppRoutes />
+        </Suspense>
+      </AdminProvider>
+    </BrowserRouter>
   );
 }
 

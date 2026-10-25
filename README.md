@@ -1,35 +1,84 @@
-# React + TypeScript + Vite
+# Everyticket Administration
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Everyticket's platform administrator app. Organizers use a separate dashboard.
+Built with React, TypeScript, Vite, React Router, Tailwind, and Better Auth.
 
-Currently, two official plugins are available:
+## Prerequisites
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Install [Bun 1.4.4](https://bun.sh/) or the version declared by `packageManager`
+in `package.json`. Bun is the only supported package manager; `bun.lock` is the
+authoritative dependency lockfile.
 
-## React Compiler
+## Run locally
 
-The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
-
-Note: This will impact Vite dev & build performances.
-You can also try [the experimental native React Compiler support in plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md#rust-react-compiler) by using `compiler: true` in the plugin options instead of using the Babel plugin.
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```sh
+bun install --frozen-lockfile
+bun run dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Development opens a demo administrator session by default, with no backend requests.
+All records are dummy data. Changes last until refresh. To configure explicitly,
+copy `.env.example` to `.env.local` and adjust the values.
+
+Project validation uses only dependencies installed by Bun:
+
+```sh
+bun run test
+bun run typecheck
+bun run lint
+bun run build
+```
+
+The browser smoke test uses Playwright's Chromium build. Install that browser once
+per machine (and again when Playwright requests an updated build), then run it:
+
+```sh
+bun run test:e2e:install
+bun run test:e2e
+```
+
+`bun run validate` runs the model tests, both application and tooling type checks,
+lint, the production build, and the Chromium smoke test. It expects the browser
+installation above to be available.
+
+For a built demo preview:
+
+```sh
+VITE_DEMO_MODE=true bun run build
+bun run preview
+```
+
+## What's included
+
+Overview, Events, Users, Orders, Refunds, Payouts, Fee Rules, Reconciliation,
+Jobs & Media, and Audit Log. Records support search, filters, details, and CSV
+export. Sensitive actions require reasons, update linked records, and add audit
+entries. The interface adapts to desktop, tablet, and phone; wide financial
+comparisons scroll within their tables. Global search supports Cmd/Ctrl K.
+
+Demo money values use integer kobo. Display uses NGN and Africa/Lagos dates.
+Approval does not complete a refund. Payout recording never initiates a transfer.
+Job retries remain queued until a worker is connected. Scheduled fee rules remain
+scheduled until the backend can activate them.
+
+## Backend connection
+
+Set `VITE_DEMO_MODE=false` and `VITE_AUTH_URL` to enable Better Auth sign-in.
+Production builds do not enable demo access unless explicitly requested.
+Authentication errors block the workspace instead of falling through.
+
+Known behavior: the current demo-mode flag condition does not match that documented
+meaning for every explicit flag value. This maintainability pass records the
+pre-existing discrepancy but intentionally does not change authentication or demo
+semantics.
+
+The operational data remains mocked even with backend sign-in. Replace the
+`AdminProvider` boundary in `src/features/admin/store.tsx` with API queries and
+mutations when endpoints are available. `model.ts` contains the demo entities and
+validated state transitions; `selectors.ts` supplies display records. Keep server
+validation, administrator authorization, money calculations, audit persistence,
+and exactly-once fulfilment in the backend. Frontend checks are only interaction
+validation. The existing Query Client is available for that integration.
+
+The agreed scope is in `.scratch/admin-foundation/spec.md` and domain vocabulary
+is in `GLOSSARY.md`.

@@ -2,25 +2,36 @@
 	"name": "everyticket-admin",
 	"private": true,
 	"version": "0.0.0",
+	"packageManager": "bun@1.4.4",
 	"type": "module",
 	"scripts": {
 		"dev": "vite",
 		"build": "tsc -b && vite build",
-		"lint": "oxlint",
-		"preview": "vite preview"
+		"lint": "biome lint src tests e2e playwright.config.ts vite.config.ts",
+		"format": "biome format --write src tests e2e playwright.config.ts vite.config.ts",
+		"preview": "vite preview",
+		"test": "bun test tests",
+		"test:e2e": "playwright test",
+		"test:e2e:install": "playwright install chromium",
+		"typecheck": "bun run typecheck:app && bun run typecheck:tooling",
+		"typecheck:app": "tsc -p tsconfig.app.json --noEmit",
+		"typecheck:tooling": "tsc -p tsconfig.node.json --noEmit",
+		"validate": "bun run test && bun run typecheck && bun run lint && bun run build && bun run test:e2e"
 	},
 	"dependencies": {
+		"@fontsource-variable/geist": "^5.3.0",
 		"@tailwindcss/vite": "^4.3.3",
-		"@tanstack/react-query": "^5.104.3",
 		"better-auth": "^1.7.10",
+		"lucide-react": "^1.61.0",
 		"react": "^19.2.8",
 		"react-dom": "^19.2.8",
 		"react-router-dom": "^7.18.4",
-		"tailwindcss": "^4.3.3",
-		"zod": "^4.6.7"
+		"tailwindcss": "^4.3.3"
 	},
 	"devDependencies": {
 		"@babel/core": "^7.29.7",
+		"@biomejs/biome": "2.5.15",
+		"@playwright/test": "1.45.3",
 		"@rolldown/plugin-babel": "^0.2.3",
 		"@types/babel__core": "^7.20.5",
 		"@types/node": "^24.13.3",
