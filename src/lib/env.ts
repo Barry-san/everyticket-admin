@@ -1,7 +1,9 @@
-export const ENV = {
-  // A production demo build must opt in with VITE_DEMO_MODE=true.
-  DEMO_MODE:
-    import.meta.env.VITE_DEMO_MODE === "true" ||
-    (import.meta.env.DEV && import.meta.env.VITE_DEMO_MODE !== "false"),
-  VITE_AUTH_URL: import.meta.env.VITE_AUTH_URL as string | undefined,
-};
+import { z } from "zod";
+
+const envSchema = z.object({
+	VITE_BACKEND_URL: z.url(),
+	VITE_AUTH_URL: z.url(),
+});
+
+
+export const ENV = envSchema.parse(import.meta.env);

@@ -1,26 +1,29 @@
 # Everyticket Administration
 
 Everyticket's platform administrator app. Organizers use a separate dashboard.
-Built with React, TypeScript, Vite, React Router, Tailwind, and Better Auth.
-
-## Prerequisites
-
-Install [Bun 1.4.4](https://bun.sh/) or the version declared by `packageManager`
-in `package.json`. Bun is the only supported package manager; `bun.lock` is the
-authoritative dependency lockfile.
 
 ## Run locally
+
+Use the Bun version declared in package.json. Copy .env.example to .env.local, set the two URLs, then run:
 
 ```sh
 bun install --frozen-lockfile
 bun run dev
 ```
 
-Development opens a demo administrator session by default, with no backend requests.
-All records are dummy data. Changes last until refresh. To configure explicitly,
-copy `.env.example` to `.env.local` and adjust the values.
+VITE_BACKEND_URL includes the canonical /api/v1 prefix. VITE_AUTH_URL is the Better Auth server origin (authentication is mounted at /api/auth). Sign in with an existing active administrator Profile. There is no demo session or fallback data.
 
-Project validation uses only dependencies installed by Bun:
+In the backend repository, configure ADMIN_APP_URL to the admin frontend's exact origin. The API and Better Auth share the explicit browser-origin allow-list. PUBLIC_APP_URL continues to identify the customer frontend; localhost:5173 is accepted outside production. Actual production URL values belong in deployment configuration. The existing backend requires secure cross-site session cookies; use HTTPS for deployed applications and verify local browser cookie handling when connecting to a remote API.
+
+## Live workflows
+
+The overview displays the existing backend summary totals. Events, Users, Orders, Refunds, Payouts, Fee rules, and Audit log read directly from the backend. Search and filters use the server capabilities for each resource, with pagination and filters in the URL. Details use records on the current page. The fee-rule screen shows the active rule only. Refund review uses the amounts provided by the existing list response; selected-ticket details are unavailable.
+
+Reconciliation and Jobs & media retain routes with an unavailable state. Administrator provisioning, global search, and unsupported analytics have no active controls. Payout recording records an external transfer; it does not initiate one. Refund approval and execution are separate operations.
+
+The active integration lives in src/features/live: contracts, query/API handling, action payloads, forms, details, and screens are separate modules. Axios carries application requests, React Query owns their cache, and React Hook Form handles editable values. Better Auth's client owns its session protocol. Server mutations complete before caches refresh. Money stays in integer kobo and dates are presented in Africa/Lagos time.
+
+## Validation
 
 ```sh
 bun run test
@@ -29,56 +32,6 @@ bun run lint
 bun run build
 ```
 
-The browser smoke test uses Playwright's Chromium build. Install that browser once
-per machine (and again when Playwright requests an updated build), then run it:
+The default test command runs only the focused live-contract checks. Earlier demo screens, reducer fixtures, and browser tests remain in the working tree for reference because they contain pre-existing work; they are disconnected from the active routes and default validation. They should not be used to validate live backend integration.
 
-```sh
-bun run test:e2e:install
-bun run test:e2e
-```
-
-`bun run validate` runs the model tests, both application and tooling type checks,
-lint, the production build, and the Chromium smoke test. It expects the browser
-installation above to be available.
-
-For a built demo preview:
-
-```sh
-VITE_DEMO_MODE=true bun run build
-bun run preview
-```
-
-## What's included
-
-Overview, Events, Users, Orders, Refunds, Payouts, Fee Rules, Reconciliation,
-Jobs & Media, and Audit Log. Records support search, filters, details, and CSV
-export. Sensitive actions require reasons, update linked records, and add audit
-entries. The interface adapts to desktop, tablet, and phone; wide financial
-comparisons scroll within their tables. Global search supports Cmd/Ctrl K.
-
-Demo money values use integer kobo. Display uses NGN and Africa/Lagos dates.
-Approval does not complete a refund. Payout recording never initiates a transfer.
-Job retries remain queued until a worker is connected. Scheduled fee rules remain
-scheduled until the backend can activate them.
-
-## Backend connection
-
-Set `VITE_DEMO_MODE=false` and `VITE_AUTH_URL` to enable Better Auth sign-in.
-Production builds do not enable demo access unless explicitly requested.
-Authentication errors block the workspace instead of falling through.
-
-Known behavior: the current demo-mode flag condition does not match that documented
-meaning for every explicit flag value. This maintainability pass records the
-pre-existing discrepancy but intentionally does not change authentication or demo
-semantics.
-
-The operational data remains mocked even with backend sign-in. Replace the
-`AdminProvider` boundary in `src/features/admin/store.tsx` with API queries and
-mutations when endpoints are available. `model.ts` contains the demo entities and
-validated state transitions; `selectors.ts` supplies display records. Keep server
-validation, administrator authorization, money calculations, audit persistence,
-and exactly-once fulfilment in the backend. Frontend checks are only interaction
-validation. The existing Query Client is available for that integration.
-
-The agreed scope is in `.scratch/admin-foundation/spec.md` and domain vocabulary
-is in `GLOSSARY.md`.
+The backend has one focused credentialed-CORS HTTP check, alongside its existing auth-origin test. No production financial actions are exercised by these checks.

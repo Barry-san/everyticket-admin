@@ -1,0 +1,78 @@
+.records-panel {
+	overflow-x: auto;
+}
+.records-panel table {
+	width: 100%;
+	border-collapse: collapse;
+	text-align: left;
+	font-size: 12px;
+}
+.records-panel th {
+	color: #84798b;
+	font-size: 10px;
+	text-transform: uppercase;
+	letter-spacing: 0.8px;
+	background: #faf8fb;
+}
+.records-panel th,
+.records-panel td {
+	padding: 18px 22px;
+	border-bottom: 1px solid #eee9f0;
+}
+.records-panel td p {
+	color: #84798b;
+	margin-top: 5px;
+}
+.records-panel input,
+.records-panel select {
+	padding: 10px 12px;
+	border: 1px solid #e5dfe9;
+	border-radius: 7px;
+	background: white;
+}
+.record-detail {
+	display: grid;
+	grid-template-columns: minmax(100px, 1fr) 2fr;
+	gap: 12px;
+	font-size: 12px;
+	margin: 20px 0;
+}
+.record-detail dt {
+	color: #84798b;
+	text-transform: capitalize;
+}
+.record-detail dd {
+	overflow-wrap: anywhere;
+}
+@media (max-width: 1100px) {
+	.app-shell > .desktop-sidebar {
+		display: flex;
+		position: static;
+		height: auto;
+	}
+	.app-shell {
+		grid-template-columns: 190px minmax(0, 1fr);
+	}
+}
+@media (max-width: 650px) {
+	.app-shell {
+		display: block;
+	}
+	.app-shell > .desktop-sidebar {
+		padding: 15px;
+	}
+	.app-shell .side-navigation {
+		display: flex;
+		flex-direction: row;
+		overflow-x: auto;
+		gap: 12px;
+	}
+	.app-shell .nav-group {
+		min-width: 130px;
+	}
+	.app-shell .sidebar-user,
+	.app-shell .sidebar-bottom,
+	.app-shell .workspace-label {
+		display: none;
+	}
+}
