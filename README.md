@@ -21,9 +21,9 @@ The overview displays the existing backend summary totals. Events, Users, Orders
 
 View details opens a dedicated `/<resource>/<id>` page, with list search, filters, and pagination preserved in the return link. Legacy `?record=<id>` links redirect to these pages.
 
-A fresh lookup checks the originating list page, then scans unfiltered API pages sequentially; direct entry starts at page one. Cached records provide a preview with actions disabled until lookup succeeds. Large datasets may require many requests, and concurrent list changes can affect pagination; guaranteed lookup requires a future backend endpoint. Unavailable results do not establish that a record was deleted.
+Each detail page makes one cancellable request to its authenticated record-by-ID endpoint. Detail caches use the resource and ID; originating filters only control the back link. Cached collection records provide a preview with actions disabled until fresh detail data succeeds. Missing IDs show an unavailable state; other failures support retry.
 
-Detail pages show every returned field, including nested identities, payment attempts, and structured audit details; fields absent from the API remain unavailable. The fee-rule screen shows the active rule only, and links to prior rules become unavailable. Refund review uses the amounts provided by the existing list response; selected-ticket details are unavailable.
+Detail pages group rich event, profile, order, refund, payout, fee-rule and audit data into sections, including ticket configuration, ready media URLs, payment attempts, selected refund tickets, monetary breakdowns, and administrator identities. Historical and scheduled fee rules can be opened by ID and display their version. “Replace active fee rule” changes the global active rule.
 
 Reconciliation and Jobs & media retain routes with an unavailable state. Administrator provisioning, global search, and unsupported analytics have no active controls. Payout recording records an external transfer; it does not initiate one. Refund approval and execution are separate operations.
 
@@ -38,6 +38,6 @@ bun run lint
 bun run build
 ```
 
-The default test command runs the focused live-contract and record-lookup checks. Run `bun run test:e2e:details` for the active-route browser suite with mocked API and authentication responses. Earlier demo screens, reducer fixtures, and browser tests remain in the working tree for reference because they contain pre-existing work; they are disconnected from the active routes and default validation. They should not be used to validate live backend integration.
+The default test command runs the focused live-contract and record detail API checks. Run `bun run test:e2e:details` for the active-route browser suite with mocked API and authentication responses. Earlier demo screens, reducer fixtures, and browser tests remain in the working tree for reference because they contain pre-existing work; they are disconnected from the active routes and default validation. They should not be used to validate live backend integration.
 
 The backend has one focused credentialed-CORS HTTP check, alongside its existing auth-origin test. No production financial actions are exercised by these checks.

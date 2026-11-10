@@ -4,14 +4,13 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 import { Badge, Modal } from "@/features/admin/components";
 import { ActionForm } from "./action-form";
 import { type Action, actionsFor } from "./actions";
-import { errorMessage, fetchRecords } from "./api";
+import { errorMessage, fetchRecord } from "./api";
 import {
 	type Page,
 	type RecordItem,
 	type Resource,
 	resources,
 } from "./contracts";
-import { lookupRecord } from "./lookup";
 import { RecordDetail } from "./record-detail";
 import { statusLabel } from "./status";
 
@@ -31,14 +30,16 @@ function Details({ resource, id }: { resource: Resource; id: string }) {
 		updatedAt: number;
 	} | null>(null);
 	const query = useQuery<RecordItem | null>({
-		queryKey: ["admin", resource, "detail", id, from],
-		queryFn: ({ signal }) =>
-			lookupRecord(resource, id, origin, signal, (params, abort) =>
-				fetchRecords(resource, params, abort),
-			),
+		queryKey: ["admin", resource, "detail", id],
+		queryFn: ({ signal }) => fetchRecord(resource, id, signal),
 		placeholderData: () =>
 			client
-				.getQueriesData<Page>({ queryKey: ["admin", resource] })
+				.getQueriesData<Page>({
+					queryKey: ["admin", resource],
+					predicate: (query) =>
+						query.queryKey.length === 3 &&
+						typeof query.queryKey[2] === "object",
+				})
 				.flatMap(([, page]) => page?.items || [])
 				.find((row) => row.id === id),
 		staleTime: 0,
@@ -74,7 +75,7 @@ function Details({ resource, id }: { resource: Resource; id: string }) {
 							status={statusLabel(
 								row.status ||
 									row.role ||
-									(resource === "fee-rules" ? "Active" : "Recorded"),
+									(resource === "fee-rules" ? "Recorded version" : "Recorded"),
 							)}
 						/>
 					)}
@@ -111,11 +112,7 @@ function Details({ resource, id }: { resource: Resource; id: string }) {
 			)}
 			{ready && !row && (
 				<div className="panel records-state">
-					This record is unavailable in the current API results
-					{resource === "fee-rules"
-						? "; only the active fee rule is available"
-						: ""}
-					. It may be outside the results you can access or may have changed.
+					This record is unavailable. It could not be found.
 				</div>
 			)}
 			{row && <RecordDetail record={row} resource={resource} />}

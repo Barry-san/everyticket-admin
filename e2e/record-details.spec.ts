@@ -5,6 +5,25 @@ const records: Record<string, Record<string, unknown>> = {
 		id: "event_id_exact",
 		title: "Lagos live",
 		slug: "lagos_live",
+		description: "Full event description",
+		timeZone: "Africa/Lagos",
+		address: "123 Victoria Island, Lagos",
+		ticketTypes: [
+			{
+				id: "vip",
+				name: "VIP configuration",
+				capacity: 50,
+				isActive: false,
+				priceKobo: 0,
+			},
+		],
+		media: [
+			{
+				id: "cover",
+				publicUrl: "https://media.example.test/cover.png",
+				isCover: true,
+			},
+		],
 		status: "PUBLISHED",
 		featured: false,
 		startAt: "2026-11-10T10:00:00Z",
@@ -18,6 +37,8 @@ const records: Record<string, Record<string, unknown>> = {
 		id: "profile_exact",
 		user: { name: "Buyer", email: "buyer@example.com" },
 		role: "CUSTOMER",
+		roles: ["CUSTOMER", "ORGANIZER"],
+		blockedBy: null,
 		status: "ACTIVE",
 		createdAt: "2026-11-10T10:00:00Z",
 		blockedAt: null,
@@ -30,6 +51,13 @@ const records: Record<string, Record<string, unknown>> = {
 		buyerEmail: "buyer@example.com",
 		status: "PAID",
 		totalKobo: 0,
+		buyerPhone: "08000000000",
+		currency: "NGN",
+		ticketSubtotalKobo: 0,
+		platformFeeKobo: 0,
+		lines: [
+			{ id: "line", ticketTypeName: "VIP line", unitPriceKobo: 0, quantity: 1 },
+		],
 		event: { id: "event_id_exact", title: "Lagos live" },
 		paymentAttempts: [
 			{
@@ -48,27 +76,48 @@ const records: Record<string, Record<string, unknown>> = {
 		totalRefundKobo: 0,
 		order: { id: "order_exact", reference: "ORDER_ref_exact" },
 		reason: "Requested refund",
+		tickets: [
+			{
+				ticketId: "ticket_selected",
+				ticket: {
+					holderName: "Selected holder",
+					ticketTypeName: "VIP",
+					priceKobo: 0,
+					status: "ACTIVE",
+				},
+			},
+		],
 	},
 	payouts: {
 		id: "payout_exact",
 		status: "REQUESTED",
 		requestedAmountKobo: 0,
 		calculatedPayableKobo: 0,
+		ticketSubtotalKobo: 10000,
+		reservedRefundKobo: 1000,
+		priorPaidKobo: 500,
+		reviewer: null,
 		transferReference: "TRANSFER_ref_exact",
 		transferDate: null,
 	},
 	"fee-rules": {
 		id: "rule_exact",
-		version: 1,
+		version: 7,
 		mode: "FIXED",
 		fixedAmountKobo: 0,
 		appliesToFreeOrder: false,
 		activeFrom: "2026-11-10T10:00:00Z",
-		activeUntil: null,
+		activeUntil: "2026-11-11T10:00:00Z",
 	},
 	audit: {
 		id: "audit_exact",
 		action: "EVENT_SUSPENDED",
+		actor: {
+			id: "actor",
+			role: "ADMIN",
+			roles: ["ADMIN"],
+			user: { name: "Audit administrator", email: "admin@example.test" },
+		},
 		targetId: "event_id_exact",
 		targetType: "Event",
 		createdAt: "2026-11-10T10:00:00Z",
@@ -119,7 +168,7 @@ async function mock(page: Page) {
 				},
 			});
 		const resource = Object.keys(records).find((name) =>
-			url.pathname.endsWith(`/admin/${endpoints[name] || name}`),
+			url.pathname.includes(`/admin/${endpoints[name] || name}`),
 		);
 		if (!resource)
 			return route.fulfill({
@@ -128,7 +177,8 @@ async function mock(page: Page) {
 			});
 		return route.fulfill({
 			json:
-				resource === "fee-rules"
+				resource === "fee-rules" ||
+				url.pathname.endsWith(`/${records[resource].id}`)
 					? records[resource]
 					: {
 							items: [records[resource]],
@@ -144,6 +194,11 @@ for (const resource of Object.keys(records)) {
 		page,
 	}) => {
 		await mock(page);
+		const requests: string[] = [];
+		page.on("request", (request) => {
+			const path = new URL(request.url()).pathname;
+			if (path.startsWith("/api/v1/admin/")) requests.push(path);
+		});
 		const record = records[resource];
 		await page.goto(`/${resource}/${record.id}`);
 		await expect(
@@ -167,7 +222,9 @@ for (const resource of Object.keys(records)) {
 			).toBeVisible();
 		}
 		if (resource === "events" || resource === "fee-rules")
-			await expect(page.getByText("false", { exact: true })).toBeVisible();
+			await expect(
+				page.getByText("false", { exact: true }).first(),
+			).toBeVisible();
 		if (resource === "audit") {
 			await expect(
 				page.getByText("audit_reason_exact", { exact: true }),
@@ -179,8 +236,30 @@ for (const resource of Object.keys(records)) {
 		}
 		if (["orders", "refunds", "payouts", "fee-rules"].includes(resource))
 			await expect(page.getByText("₦0", { exact: true }).first()).toBeVisible();
+		expect(requests).toEqual([
+			`/api/v1/admin/${endpoints[resource] || resource}/${record.id}`,
+		]);
+		if (resource === "events")
+			await expect(
+				page.getByText("VIP configuration", { exact: true }),
+			).toBeVisible();
+		if (resource === "orders")
+			await expect(page.getByText("VIP line", { exact: true })).toBeVisible();
+		if (resource === "refunds")
+			await expect(
+				page.getByText("Selected holder", { exact: true }),
+			).toBeVisible();
+		if (resource === "fee-rules") {
+			await expect(
+				page.getByRole("heading", { name: "Version 7", exact: true }),
+			).toBeVisible();
+			await expect(
+				page.getByRole("button", { name: "Replace active fee rule" }),
+			).toBeVisible();
+		}
 		await page.reload();
 		await expect(page.locator(".detail-sections")).toBeVisible();
+		expect(requests).toHaveLength(2);
 		await page.setViewportSize({ width: 390, height: 844 });
 		await expect(page.locator(".detail-sections")).toBeVisible();
 		expect(
@@ -224,12 +303,7 @@ test("confirmation cancellation, failure and refreshed action availability", asy
 			return route.fulfill({ json: { success: true } });
 		}
 		return route.fulfill({
-			json: {
-				items: [{ ...records.refunds, status }],
-				page: 1,
-				pageSize: 20,
-				total: 1,
-			},
+			json: { ...records.refunds, status },
 		});
 	});
 	await page.goto("/refunds/refund_exact");
@@ -253,25 +327,23 @@ test("confirmation cancellation, failure and refreshed action availability", asy
 	await expect(page.getByText("REJECTED", { exact: true })).toBeVisible();
 	expect(submissions).toBe(2);
 });
-test("lookup errors retry and unavailable records explain API limits", async ({
+test("detail errors retry and missing records show unavailable", async ({
 	page,
 }) => {
 	await mock(page);
 	let fail = true;
-	await page.route("**/api/v1/admin/platform-fee-rule**", (route) =>
+	await page.route(/\/api\/v1\/admin\/platform-fee-rule(?:[/?]|$)/, (route) =>
 		fail
 			? route.fulfill({ status: 500, json: { message: "Lookup failed" } })
-			: route.fulfill({ json: records["fee-rules"] }),
+			: route.fulfill({ status: 404, json: { message: "record not found" } }),
 	);
 	await page.goto("/fee-rules/old_rule");
 	await expect(page.getByRole("alert")).toContainText("Lookup failed");
 	fail = false;
 	await page.getByRole("button", { name: "Try again" }).click();
+	await expect(page.getByText(/This record is unavailable/)).toBeVisible();
 	await expect(
-		page.getByText(/only the active fee rule is available/),
-	).toBeVisible();
-	await expect(
-		page.getByRole("button", { name: "Replace fee rule" }),
+		page.getByRole("button", { name: "Replace active fee rule" }),
 	).toHaveCount(0);
 });
 
@@ -286,12 +358,12 @@ test("cached preview disables actions until fresh lookup, and navigation cancels
 		release = resolve;
 	});
 	let requested = false;
-	await page.route("**/api/v1/admin/events**", async (route) => {
+	await page.route(/\/api\/v1\/admin\/events(?:[/?]|$)/, async (route) => {
 		requested = true;
 		await gate;
 		await route
 			.fulfill({
-				json: { items: [records.events], page: 1, pageSize: 20, total: 1 },
+				json: records.events,
 			})
 			.catch(() => {});
 	});
@@ -299,8 +371,8 @@ test("cached preview disables actions until fresh lookup, and navigation cancels
 	await expect(
 		page.getByRole("button", { name: "Suspend event" }),
 	).toBeDisabled();
-	await expect(page.getByText("false", { exact: true })).toBeVisible();
-	expect(requested).toBe(true);
+	await expect(page.getByText("false", { exact: true }).first()).toBeVisible();
+	await expect.poll(() => requested).toBe(true);
 	const cancelled = page.waitForEvent("requestfailed", (request) =>
 		request.url().includes("/admin/events"),
 	);
@@ -312,28 +384,18 @@ test("cached preview disables actions until fresh lookup, and navigation cancels
 	).toBeVisible();
 });
 
-test("direct lookup finds a record beyond page one", async ({ page }) => {
+test("direct entry requests only the detail endpoint without collection scans", async ({
+	page,
+}) => {
 	await mock(page);
-	const pages: string[] = [];
-	await page.route("**/api/v1/admin/orders**", (route) => {
-		const number =
-			new URL(route.request().url()).searchParams.get("page") || "1";
-		pages.push(number);
-		return route.fulfill({
-			json: {
-				items:
-					number === "2"
-						? [records.orders]
-						: [{ id: "other_order", reference: "Other booking" }],
-				page: Number(number),
-				pageSize: 1,
-				total: 2,
-			},
-		});
+	const paths: string[] = [];
+	await page.route(/\/api\/v1\/admin\/orders(?:[/?]|$)/, (route) => {
+		paths.push(new URL(route.request().url()).pathname);
+		return route.fulfill({ json: records.orders });
 	});
-	await page.goto("/orders/order_exact");
+	await page.goto("/orders/order_exact?from=q%3Dbuyer%26page%3D9");
 	await expect(
 		page.getByRole("heading", { name: "ORDER_ref_exact", exact: true }),
 	).toBeVisible();
-	expect(pages).toEqual(["1", "2"]);
+	expect(paths).toEqual(["/api/v1/admin/orders/order_exact"]);
 });

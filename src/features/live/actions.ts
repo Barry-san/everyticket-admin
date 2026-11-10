@@ -84,7 +84,7 @@ export function actionsFor(resource: Resource, row: RecordItem): Action[] {
 	if (resource === "fee-rules")
 		return [
 			{
-				label: "Replace fee rule",
+				label: "Replace active fee rule",
 				method: "put",
 				path: "/admin/platform-fee-rule",
 				fields: ["mode", "feeValue", "effectiveAt", "reason"],

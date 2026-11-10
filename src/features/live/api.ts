@@ -44,6 +44,30 @@ export async function fetchRecords(
 	return data;
 }
 
+export async function fetchRecord(
+	resource: Resource,
+	id: string,
+	signal?: AbortSignal,
+): Promise<RecordItem | null> {
+	signal?.throwIfAborted();
+	try {
+		const { data } = await api.get(
+			`/admin/${resources[resource].endpoint}/${encodeURIComponent(id)}`,
+			{ signal },
+		);
+		return data;
+	} catch (error) {
+		if (
+			typeof error === "object" &&
+			error &&
+			"response" in error &&
+			(error.response as { status?: number } | undefined)?.status === 404
+		)
+			return null;
+		throw error;
+	}
+}
+
 export function errorMessage(error: unknown) {
 	if (typeof error === "object" && error && "response" in error) {
 		const response = (
