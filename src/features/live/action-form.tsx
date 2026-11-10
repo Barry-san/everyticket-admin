@@ -1,15 +1,18 @@
 import { Spinner } from "@/components/ui/spinner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { useForm } from "react-hook-form";
 import { api } from "@/lib/api";
-import { type Action, actionBody } from "./actions";
+import { type Action, actionBody, actionFieldLabels } from "./actions";
 import { errorMessage } from "./api";
 export function ActionForm({
 	action,
 	close,
+	onSuccess,
 }: {
 	action: Action;
 	close: () => void;
+	onSuccess?: (data: unknown) => void;
 }) {
 	const {
 		register,
@@ -24,22 +27,20 @@ export function ActionForm({
 				method: action.method,
 				data: actionBody(action, values),
 			}),
-		onSuccess: async () => {
+		onSuccess: async (response) => {
+			toast.success(action.successMessage);
+			onSuccess?.(response.data);
 			close();
 			await client.invalidateQueries({ queryKey: ["admin"] });
 		},
+		onError: (error) => toast.error(errorMessage(error)),
 	});
 	return (
 		<form onSubmit={handleSubmit((values) => mutation.mutate(values))}>
 			<h3>{action.label}</h3>
 			{action.fields.map((field) => (
-				<label className="form-field" key={field} htmlFor={`action-${field}`}>
-					{field === "feeValue"
-						? "Fixed amount (kobo) or percentage (basis points)"
-						: field.replace(/([A-Z])/g, " $1")}
-					{field === "effectiveAt" || field === "transferDate"
-						? " (Africa/Lagos)"
-						: ""}
+				<div className="form-field" key={field}>
+					<label htmlFor={`action-${field}`}>{actionFieldLabels[field]}</label>
 					{field === "mode" ? (
 						<select
 							id={`action-${field}`}
@@ -69,7 +70,7 @@ export function ActionForm({
 						/>
 					)}
 					{errors[field] && <span role="alert">Enter a valid value.</span>}
-				</label>
+				</div>
 			))}
 			{mutation.isError && (
 				<p className="form-error" role="alert">

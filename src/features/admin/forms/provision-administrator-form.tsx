@@ -34,7 +34,7 @@ export function ProvisionAdministratorForm({
 				Full name
 				<input
 					autoComplete="name"
-					placeholder="e.g. Amaka Eze"
+					placeholder="E.g. Amaka Eze"
 					aria-invalid={!!errors.name}
 					{...register("name", {
 						required: "Enter a name with at least 2 characters.",

@@ -1,11 +1,16 @@
 import { Spinner } from "@/components/ui/spinner";
+import { useState } from "react";
 import { Link, Navigate, useSearchParams } from "react-router-dom";
-import { Badge, downloadCsv } from "@/features/admin/components";
+import { Badge, downloadCsv, Modal } from "@/features/admin/components";
+import { ActionForm } from "./action-form";
+import { addFeeRuleAction } from "./actions";
 import { date, money } from "@/features/admin/format";
 import { errorMessage, useRecords } from "./api";
 import { type Resource, resources } from "./contracts";
 import { statusLabel } from "./status";
 export default function LiveRecords({ resource }: { resource: Resource }) {
+	const [addingRule, setAddingRule] = useState(false);
+	const [createdRuleId, setCreatedRuleId] = useState<string | null>(null);
 	const [search, setSearch] = useSearchParams();
 	const query = useRecords(resource, search);
 	const config = resources[resource];
@@ -30,35 +35,54 @@ export default function LiveRecords({ resource }: { resource: Resource }) {
 					<p className="eyebrow">Platform administration</p>
 					<h1>{config.title}</h1>
 				</div>
-				<button
-					type="button"
-					className="button"
-					disabled={!items.length || query.isError}
-					onClick={() =>
-						downloadCsv(
-							`${resource}-current-page.csv`,
-							["ID", "Record", "Status", "Amount (kobo)"],
-							items.map((row) => [
-								row.id,
-								row.title ||
-									row.user?.name ||
-									row.reference ||
-									row.action ||
-									"",
-								row.status || row.role || "",
-								String(
-									row.totalKobo ??
-										row.totalRefundKobo ??
-										row.requestedAmountKobo ??
+				<div className="detail-actions">
+					{resource === "fee-rules" && (
+						<button
+							type="button"
+							className="button button-primary"
+							onClick={() => setAddingRule(true)}
+						>
+							Add fee rule
+						</button>
+					)}
+					<button
+						type="button"
+						className="button"
+						disabled={!items.length || query.isError}
+						onClick={() =>
+							downloadCsv(
+								`${resource}-current-page.csv`,
+								["ID", "Record", "Status", "Amount (kobo)"],
+								items.map((row) => [
+									row.id,
+									row.title ||
+										row.user?.name ||
+										row.reference ||
+										row.action ||
 										"",
-								),
-							]),
-						)
-					}
-				>
-					Export current page
-				</button>
+									row.status || row.role || "",
+									String(
+										row.totalKobo ??
+											row.totalRefundKobo ??
+											row.requestedAmountKobo ??
+											"",
+									),
+								]),
+							)
+						}
+					>
+						Export current page
+					</button>
+				</div>
 			</div>
+			{resource === "fee-rules" && createdRuleId && (
+				<p role="status">
+					Fee rule added.{" "}
+					<Link className="text-link" to={detailUrl(createdRuleId)}>
+						View added fee rule
+					</Link>
+				</p>
+			)}
 			<section className="panel records-panel">
 				<div className="table-toolbar">
 					{(resource === "users" || resource === "orders") && (
@@ -204,6 +228,27 @@ export default function LiveRecords({ resource }: { resource: Resource }) {
 					</>
 				)}
 			</section>
+			{resource === "fee-rules" && addingRule && (
+				<Modal open title="Add fee rule" onClose={() => setAddingRule(false)}>
+					<p>
+						Applies to future orders from the effective time. Existing orders
+						keep their original fee.
+					</p>
+					<ActionForm
+						action={addFeeRuleAction}
+						close={() => setAddingRule(false)}
+						onSuccess={(data) => {
+							if (
+								data &&
+								typeof data === "object" &&
+								"id" in data &&
+								typeof data.id === "string"
+							)
+								setCreatedRuleId(data.id);
+						}}
+					/>
+				</Modal>
+			)}
 		</>
 	);
 }

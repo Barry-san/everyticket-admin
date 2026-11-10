@@ -190,8 +190,16 @@ export default function Overview() {
 								<title>Verified payments</title>
 								<defs>
 									<linearGradient id="payment-fill" x1="0" y1="0" x2="0" y2="1">
-										<stop offset="0%" stopColor="#8456bb" stopOpacity=".2" />
-										<stop offset="100%" stopColor="#8456bb" stopOpacity="0" />
+										<stop
+											offset="0%"
+											stopColor="var(--brand-violet)"
+											stopOpacity=".2"
+										/>
+										<stop
+											offset="100%"
+											stopColor="var(--brand-violet)"
+											stopOpacity="0"
+										/>
 									</linearGradient>
 								</defs>
 								{[35, 71, 107, 143, 180].map((y) => (
@@ -212,7 +220,7 @@ export default function Overview() {
 								<path
 									d={path}
 									fill="none"
-									stroke="#8456bb"
+									stroke="var(--brand-violet)"
 									strokeWidth="3"
 									strokeLinejoin="round"
 									vectorEffect="non-scaling-stroke"
@@ -224,7 +232,7 @@ export default function Overview() {
 										cy={180 - (point.value / max) * 145}
 										r="4"
 										fill="#fff"
-										stroke="#8456bb"
+										stroke="var(--brand-violet)"
 										strokeWidth="2"
 									>
 										<title>

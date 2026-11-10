@@ -70,7 +70,7 @@
 	font-size: 13px;
 }
 .overview-metric:focus-visible {
-	outline: 2px solid #865ea3;
+	outline: 2px solid var(--brand-violet);
 	outline-offset: 4px;
 }
 @media (hover: hover) {
