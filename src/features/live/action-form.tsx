@@ -25,8 +25,8 @@ export function ActionForm({
 				data: actionBody(action, values),
 			}),
 		onSuccess: async () => {
-			await client.invalidateQueries({ queryKey: ["admin"] });
 			close();
+			await client.invalidateQueries({ queryKey: ["admin"] });
 		},
 	});
 	return (

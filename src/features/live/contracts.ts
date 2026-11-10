@@ -5,6 +5,24 @@ export type Profile = {
 	status: string;
 };
 export type RecordItem = {
+	[field: string]: unknown;
+	slug?: string;
+	endAt?: string;
+	blockedAt?: string | null;
+	blockedByProfileId?: string | null;
+	blockReason?: string | null;
+	processedAt?: string | null;
+	transferDate?: string | null;
+	paidAt?: string | null;
+	appliesToFreeOrder?: boolean;
+	activeUntil?: string | null;
+	paymentAttempts?: {
+		id: string;
+		reference: string;
+		status: string;
+		expectedAmountKobo: number;
+		[field: string]: unknown;
+	}[];
 	id: string;
 	title?: string;
 	reference?: string;

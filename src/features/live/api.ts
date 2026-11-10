@@ -7,8 +7,15 @@ import {
 	resources,
 } from "./contracts";
 export function useRecords(resource: Resource, search: URLSearchParams) {
-	const params = {
-		page: Number(search.get("page")) || 1,
+	const params = recordParams(resource, search);
+	return useQuery({
+		queryKey: ["admin", resource, params],
+		queryFn: ({ signal }) => fetchRecords(resource, search, signal),
+	});
+}
+export function recordParams(resource: Resource, search: URLSearchParams) {
+	return {
+		page: Math.max(1, Number(search.get("page")) || 1),
 		pageSize: 20,
 		...(resource === "users" || resource === "orders"
 			? { q: search.get("q") || undefined }
@@ -17,23 +24,26 @@ export function useRecords(resource: Resource, search: URLSearchParams) {
 			? { state: search.get("status") || undefined }
 			: { status: search.get("status") || undefined }),
 	};
-	return useQuery({
-		queryKey: ["admin", resource, params],
-		queryFn: async (): Promise<Page> => {
-			const { data } = await api.get(`/admin/${resources[resource].endpoint}`, {
-				params,
-			});
-			if (resource === "fee-rules")
-				return {
-					items: data ? [data as RecordItem] : [],
-					page: 1,
-					pageSize: 20,
-					total: data ? 1 : 0,
-				};
-			return data;
-		},
-	});
 }
+export async function fetchRecords(
+	resource: Resource,
+	search: URLSearchParams,
+	signal?: AbortSignal,
+): Promise<Page> {
+	const { data } = await api.get(`/admin/${resources[resource].endpoint}`, {
+		params: recordParams(resource, search),
+		signal,
+	});
+	if (resource === "fee-rules")
+		return {
+			items: data ? [data as RecordItem] : [],
+			page: 1,
+			pageSize: 20,
+			total: data ? 1 : 0,
+		};
+	return data;
+}
+
 export function errorMessage(error: unknown) {
 	if (typeof error === "object" && error && "response" in error) {
 		const response = (

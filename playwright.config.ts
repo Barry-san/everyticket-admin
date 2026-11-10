@@ -23,7 +23,8 @@ export default defineConfig({
 		url: "http://127.0.0.1:4173",
 		reuseExistingServer: false,
 		env: {
-			VITE_DEMO_MODE: "true",
+			VITE_BACKEND_URL: "http://127.0.0.1:4173/api/v1",
+			VITE_AUTH_URL: "http://127.0.0.1:4173",
 		},
 	},
 });

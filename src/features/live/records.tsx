@@ -1,21 +1,20 @@
 import { Spinner } from "@/components/ui/spinner";
-import { useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import { Badge, downloadCsv, Modal } from "@/features/admin/components";
+import { Link, Navigate, useSearchParams } from "react-router-dom";
+import { Badge, downloadCsv } from "@/features/admin/components";
 import { date, money } from "@/features/admin/format";
-import { ActionForm } from "./action-form";
-import { type Action, actionsFor } from "./actions";
 import { errorMessage, useRecords } from "./api";
 import { type Resource, resources } from "./contracts";
-import { RecordDetail } from "./record-detail";
 import { statusLabel } from "./status";
 export default function LiveRecords({ resource }: { resource: Resource }) {
 	const [search, setSearch] = useSearchParams();
 	const query = useRecords(resource, search);
-	const [action, setAction] = useState<Action | null>(null);
 	const config = resources[resource];
 	const items = query.data?.items || [];
-	const selected = items.find((item) => item.id === search.get("record"));
+	const legacyId = search.get("record");
+	const origin = new URLSearchParams(search);
+	origin.delete("record");
+	const detailUrl = (id: string) =>
+		`/${resource}/${encodeURIComponent(id)}?${new URLSearchParams({ from: origin.toString() })}`;
 	const update = (key: string, value: string) =>
 		setSearch((previous) => {
 			const next = new URLSearchParams(previous);
@@ -23,6 +22,7 @@ export default function LiveRecords({ resource }: { resource: Resource }) {
 			if (key !== "page" && key !== "record") next.delete("page");
 			return next;
 		});
+	if (legacyId) return <Navigate replace to={detailUrl(legacyId)} />;
 	return (
 		<>
 			<div className="page-heading">
@@ -166,13 +166,9 @@ export default function LiveRecords({ resource }: { resource: Resource }) {
 												: "—"}
 										</td>
 										<td>
-											<button
-												type="button"
-												className="text-link"
-												onClick={() => update("record", row.id)}
-											>
+											<Link className="text-link" to={detailUrl(row.id)}>
 												View details
-											</button>
+											</Link>
 										</td>
 									</tr>
 								))}
@@ -208,36 +204,6 @@ export default function LiveRecords({ resource }: { resource: Resource }) {
 					</>
 				)}
 			</section>
-			{selected && (
-				<Modal
-					open
-					title={selected.title || selected.reference || selected.id}
-					onClose={() => update("record", "")}
-				>
-					<RecordDetail record={selected} />
-					<div className="detail-actions">
-						{actionsFor(resource, selected).map((item) => (
-							<button
-								type="button"
-								key={item.label}
-								className="button button-primary"
-								onClick={() => setAction(item)}
-							>
-								{item.label}
-							</button>
-						))}
-					</div>
-				</Modal>
-			)}
-			{action && (
-				<Modal open title={action.label} onClose={() => setAction(null)}>
-					<ActionForm
-						key={action.path}
-						action={action}
-						close={() => setAction(null)}
-					/>
-				</Modal>
-			)}
 		</>
 	);
 }

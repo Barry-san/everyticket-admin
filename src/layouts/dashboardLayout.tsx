@@ -170,9 +170,15 @@ export default function DashboardLayout() {
 						<strong>
 							{groups
 								.flatMap((group) => group.items)
-								.find((item) => item.path === location.pathname)?.title ||
-								"Overview"}
+								.find(
+									(item) =>
+										location.pathname === item.path ||
+										location.pathname.startsWith(`${item.path}/`),
+								)?.title || "Overview"}
 						</strong>
+						{location.pathname.split("/").filter(Boolean).length > 1 && (
+							<span> / Details</span>
+						)}
 					</div>
 					<button
 						type="button"

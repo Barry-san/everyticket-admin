@@ -1,6 +1,7 @@
 import { lazy } from "react";
 import { Link, Navigate, Route, Routes } from "react-router-dom";
 import { type Resource, resources } from "@/features/live/contracts";
+import RecordPage from "@/features/live/record-page";
 import LiveRecords from "@/features/live/records";
 import DashboardLayout from "@/layouts/dashboardLayout";
 
@@ -20,6 +21,13 @@ export function AppRoutes() {
 						key={path}
 						path={path}
 						element={<LiveRecords key={path} resource={path as Resource} />}
+					/>
+				))}
+				{(Object.keys(resources) as Resource[]).map((resource) => (
+					<Route
+						key={`${resource}-detail`}
+						path={`${resource}/:id`}
+						element={<RecordPage key={resource} resource={resource} />}
 					/>
 				))}
 				{["jobs", "reconciliation"].map((path) => (

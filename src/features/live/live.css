@@ -98,3 +98,79 @@
 	justify-content: center;
 	gap: 10px;
 }
+
+.record-heading {
+	margin-top: 24px;
+	flex-wrap: wrap;
+	gap: 20px;
+}
+.record-heading h1,
+.record-id {
+	overflow-wrap: anywhere;
+}
+.record-id {
+	margin: 10px 0;
+	color: #84798b;
+}
+.detail-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+}
+.detail-sections {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 20px;
+}
+.detail-section {
+	padding: 24px;
+	min-width: 0;
+}
+.detail-section h2 {
+	font-size: 16px;
+}
+.detail-section .record-detail {
+	grid-template-columns: minmax(90px, 1fr) minmax(0, 2fr);
+}
+.record-detail dd {
+	margin: 0;
+	white-space: pre-wrap;
+	min-width: 0;
+}
+.record-detail dd .record-detail {
+	margin: 0;
+}
+.detail-table {
+	overflow-x: auto;
+}
+.detail-table table {
+	border-collapse: collapse;
+	width: 100%;
+}
+.detail-table th,
+.detail-table td {
+	padding: 8px;
+	border-bottom: 1px solid #eee9f0;
+	text-align: left;
+	overflow-wrap: anywhere;
+}
+.detail-section:has(.detail-table) {
+	grid-column: 1 / -1;
+}
+@media (max-width: 800px) {
+	.detail-sections {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+@media (max-width: 450px) {
+	.detail-section {
+		padding: 16px;
+	}
+	.detail-section .record-detail {
+		grid-template-columns: minmax(0, 1fr);
+		gap: 8px;
+	}
+	.record-detail dd {
+		margin-bottom: 8px;
+	}
+}

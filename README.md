@@ -17,7 +17,13 @@ In the backend repository, configure ADMIN_APP_URL to the admin frontend's exact
 
 ## Live workflows
 
-The overview displays the existing backend summary totals. Events, Users, Orders, Refunds, Payouts, Fee rules, and Audit log read directly from the backend. Search and filters use the server capabilities for each resource, with pagination and filters in the URL. Details use records on the current page. The fee-rule screen shows the active rule only. Refund review uses the amounts provided by the existing list response; selected-ticket details are unavailable.
+The overview displays the existing backend summary totals. Events, Users, Orders, Refunds, Payouts, Fee rules, and Audit log read directly from the backend. Search and filters use the server capabilities for each resource, with pagination and filters in the URL.
+
+View details opens a dedicated `/<resource>/<id>` page, with list search, filters, and pagination preserved in the return link. Legacy `?record=<id>` links redirect to these pages.
+
+A fresh lookup checks the originating list page, then scans unfiltered API pages sequentially; direct entry starts at page one. Cached records provide a preview with actions disabled until lookup succeeds. Large datasets may require many requests, and concurrent list changes can affect pagination; guaranteed lookup requires a future backend endpoint. Unavailable results do not establish that a record was deleted.
+
+Detail pages show every returned field, including nested identities, payment attempts, and structured audit details; fields absent from the API remain unavailable. The fee-rule screen shows the active rule only, and links to prior rules become unavailable. Refund review uses the amounts provided by the existing list response; selected-ticket details are unavailable.
 
 Reconciliation and Jobs & media retain routes with an unavailable state. Administrator provisioning, global search, and unsupported analytics have no active controls. Payout recording records an external transfer; it does not initiate one. Refund approval and execution are separate operations.
 
@@ -32,6 +38,6 @@ bun run lint
 bun run build
 ```
 
-The default test command runs only the focused live-contract checks. Earlier demo screens, reducer fixtures, and browser tests remain in the working tree for reference because they contain pre-existing work; they are disconnected from the active routes and default validation. They should not be used to validate live backend integration.
+The default test command runs the focused live-contract and record-lookup checks. Run `bun run test:e2e:details` for the active-route browser suite with mocked API and authentication responses. Earlier demo screens, reducer fixtures, and browser tests remain in the working tree for reference because they contain pre-existing work; they are disconnected from the active routes and default validation. They should not be used to validate live backend integration.
 
 The backend has one focused credentialed-CORS HTTP check, alongside its existing auth-origin test. No production financial actions are exercised by these checks.
