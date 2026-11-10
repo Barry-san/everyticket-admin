@@ -1,8 +1,6 @@
 import {
-	ArrowRight,
 	ArrowUpRight,
 	CheckCheck,
-	CreditCard,
 	Download,
 	FileClock,
 	Layers,
@@ -15,7 +13,7 @@ import {
 } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { Link } from "react-router-dom";
-import { total } from "./calculations";
+
 import {
 	Badge,
 	type Column,
@@ -31,32 +29,18 @@ import {
 	SearchInput,
 } from "./components";
 import { date, initials, money } from "./format";
+import { ActionModalContent } from "./forms/action-modal-content";
+import {
+	createRecordAction,
+	type RecordAction,
+	type RecordActionName,
+} from "./forms/actions";
 import { getRows, type Row } from "./selectors";
 import { useAdmin } from "./store";
-import type { AdminState, Command, Section } from "./types";
+import type { AdminState, Section } from "./types";
 import { useRecords } from "./use-records";
 
-type ActionName =
-	| "suspend"
-	| "restore"
-	| "feature"
-	| "block"
-	| "unblock"
-	| "record"
-	| "fulfil"
-	| "start-refund"
-	| "retry"
-	| "reconcile"
-	| "provision"
-	| "fee";
-type Action = {
-	name: ActionName;
-	id?: string;
-	title: string;
-	description: string;
-};
-
-type RecordsSection = Exclude<Section, "refunds">;
+type RecordsSection = Exclude<Section, "refunds" | "orders" | "reconciliation">;
 
 const configuration: Record<
 	RecordsSection,
@@ -84,21 +68,6 @@ const configuration: Record<
 		statuses: ["Active", "Blocked"],
 		category: "roles",
 	},
-	orders: {
-		title: "Every ticket starts here.",
-		eyebrow: "Orders & payments",
-		description:
-			"Follow each order from checkout to confirmation, with every payment attempt in view.",
-		statuses: [
-			"Paid",
-			"Pending",
-			"Needs resolution",
-			"Refund processing",
-			"Refund requested",
-			"Failed",
-		],
-		category: "events",
-	},
 
 	payouts: {
 		title: "Keep the good things flowing.",
@@ -116,14 +85,7 @@ const configuration: Record<
 		statuses: ["Active", "Scheduled", "Historical"],
 		category: "fee types",
 	},
-	reconciliation: {
-		title: "Make every payment add up.",
-		eyebrow: "Payment operations",
-		description:
-			"Resolve verified payment exceptions with the evidence and a clear audit trail.",
-		statuses: ["Open", "Resolved"],
-		category: "exception types",
-	},
+
 	jobs: {
 		title: "Behind the scenes, in sync.",
 		eyebrow: "Jobs & media",
@@ -151,7 +113,7 @@ const configuration: Record<
 
 export default function RecordsPage({ section }: { section: RecordsSection }) {
 	const { data, execute, notify, dismiss } = useAdmin();
-	const [action, setAction] = useState<Action | null>(null);
+	const [action, setAction] = useState<RecordAction | null>(null);
 	const config = configuration[section];
 	const rows = getRows(data, section);
 	const {
@@ -193,52 +155,9 @@ export default function RecordsPage({ section }: { section: RecordsSection }) {
 			`Exported ${filtered.length} ${section === "audit" ? "audit entries" : "records"}.`,
 		);
 	}
-	const openAction = (name: ActionName, id?: string) => {
+	const openAction = (name: RecordActionName, id?: string) => {
 		dismiss();
-		const titles: Record<ActionName, string> = {
-			suspend: "Suspend event",
-			restore: "Restore event",
-			feature: "Update event feature",
-			block: "Block user",
-			unblock: "Unblock user",
-			record: "Record external transfer",
-			fulfil: "Fulfil paid order",
-			"start-refund": "Start a tracked refund",
-			retry: "Retry failed jobs",
-			reconcile: "Run reconciliation",
-			provision: "Provision administrator",
-			fee: "Schedule a fee rule",
-		};
-		const descriptions: Record<ActionName, string> = {
-			suspend:
-				"Checkout will stop. Existing orders, tickets, and history are preserved.",
-			restore: "Checkout can resume when the organizer is active.",
-			feature:
-				"Change this published event’s placement in the featured catalogue.",
-			block:
-				"Revoke access and pause this organizer’s published events. Keep all historical records.",
-			unblock:
-				"Restore account access. Suspended events must be reviewed and restored separately.",
-			record:
-				"Record a transfer already made outside Everyticket. This action does not initiate a bank transfer.",
-			fulfil:
-				"Issue tickets once, only after verifying the exact payment and available capacity.",
-			"start-refund":
-				"Create a refund request for the amount actually received. It will need a separate review.",
-			retry:
-				"Queue failed delivery jobs using their original identities. Existing tickets are not reissued.",
-			reconcile:
-				"Check the demo payment records again. Exceptions remain open until explicitly resolved.",
-			provision:
-				"Add a demo administrator with access to all sections. No email or invitation will be sent.",
-			fee: "Schedule a new fee version. Historical orders and the current fee remain unchanged.",
-		};
-		setAction({
-			name,
-			id,
-			title: titles[name],
-			description: descriptions[name],
-		});
+		setAction(createRecordAction(name, id));
 	};
 	const columns: Column<Row>[] = [
 		{
@@ -288,20 +207,18 @@ export default function RecordsPage({ section }: { section: RecordsSection }) {
 					? "Organizer"
 					: section === "users"
 						? "Role"
-						: section === "orders"
-							? "Customer"
-							: section === "payouts"
-								? "Organizer"
-								: section === "fee-rules"
-									? "Change reason"
-									: section === "audit"
-										? "Actor"
-										: "Type",
+            : section === "payouts"
+              ? "Organizer"
+              : section === "fee-rules"
+                ? "Change reason"
+                : section === "audit"
+                  ? "Actor"
+                  : "Type",
 			cell: (row) => (
 				<span className={section === "fee-rules" ? "truncate-reason" : ""}>
 					{section === "users" ? (
 						<Badge status={row.category} />
-					) : ["events", "orders", "payouts", "fee-rules"].includes(section) ? (
+          ) : ["events", "payouts", "fee-rules"].includes(section) ? (
 						row.secondary
 					) : (
 						row.category
@@ -325,12 +242,7 @@ export default function RecordsPage({ section }: { section: RecordsSection }) {
 	];
 	if (rows.some((row) => row.amount !== undefined))
 		columns.push({
-			label:
-				section === "events"
-					? "Ticket sales"
-					: section === "reconciliation"
-						? "Received"
-						: "Amount",
+      label: section === "events" ? "Ticket sales" : "Amount",
 			cell: (row) => (
 				<strong className="numeric">{money(row.amount || 0)}</strong>
 			),
@@ -379,15 +291,6 @@ export default function RecordsPage({ section }: { section: RecordsSection }) {
 				<Plus size={16} />
 				Schedule fee rule
 			</button>
-		) : section === "reconciliation" ? (
-			<button
-				type="button"
-				className="button button-primary"
-				onClick={() => openAction("reconcile")}
-			>
-				<RefreshCw size={16} />
-				Run reconciliation
-			</button>
 		) : section === "jobs" ? (
 			<button
 				type="button"
@@ -411,16 +314,14 @@ export default function RecordsPage({ section }: { section: RecordsSection }) {
 			<Panel className="records-panel">
 				<div className="records-title">
 					<h2>
-						{section === "reconciliation"
-							? "Resolution queue"
-							: section === "fee-rules"
-								? "Fee history"
-								: section === "audit"
-									? "Activity history"
-									: `All ${section === "jobs" ? "jobs" : section}`}
+            {section === "fee-rules"
+              ? "Fee history"
+              : section === "audit"
+                ? "Activity history"
+                : `All ${section === "jobs" ? "jobs" : section}`}
 					</h2>
 					<span className="count-pill">{rows.length}</span>
-					{!["audit", "events", "orders", "payouts"].includes(section) && (
+          {!["audit", "events", "payouts"].includes(section) && (
 						<button
 							type="button"
 							className="text-link records-export"
@@ -489,7 +390,7 @@ export default function RecordsPage({ section }: { section: RecordsSection }) {
 					rows={filtered}
 					columns={columns}
 					label={config.title}
-					financial={["orders", "payouts", "reconciliation"].includes(section)}
+          financial={section === "payouts"}
 				/>
 			</Panel>
 			<div className="section-footnote">
@@ -527,7 +428,7 @@ export default function RecordsPage({ section }: { section: RecordsSection }) {
 				description={action?.description}
 			>
 				{action && (
-					<ActionForm
+					<ActionModalContent
 						key={`${action.name}-${action.id}`}
 						action={action}
 						data={data}
@@ -541,7 +442,6 @@ export default function RecordsPage({ section }: { section: RecordsSection }) {
 		</>
 	);
 }
-
 function SectionSummary({
 	section,
 	data,
@@ -655,49 +555,7 @@ function SectionSummary({
 				</InfoNote>
 			</>
 		);
-	if (section === "reconciliation")
-		return (
-			<div className="health-grid">
-				<Panel>
-					<span className="health-icon icon-green">
-						<CreditCard size={20} />
-					</span>
-					<h3>Payment verification</h3>
-					<p>Sample gateway records are available.</p>
-					<Badge status="Healthy" />
-				</Panel>
-				<Panel>
-					<span className="health-icon icon-purple">
-						<RefreshCw size={20} />
-					</span>
-					<h3>Last reconciliation</h3>
-					<p>{date(data.reconciledAt, true)} WAT</p>
-					<span className="muted-small">
-						Checks are simulated in this workspace
-					</span>
-				</Panel>
-				<Panel>
-					<span className="health-icon icon-orange">
-						<FileClock size={20} />
-					</span>
-					<h3>Resolution queue</h3>
-					<p>
-						{
-							data.exceptions.filter((exception) => exception.status === "Open")
-								.length
-						}{" "}
-						exceptions need a decision.
-					</p>
-					<Badge
-						status={
-							data.exceptions.some((exception) => exception.status === "Open")
-								? "Needs resolution"
-								: "Resolved"
-						}
-					/>
-				</Panel>
-			</div>
-		);
+
 	if (section === "jobs")
 		return (
 			<div className="metrics-grid three">
@@ -756,16 +614,7 @@ function SectionSummary({
 			</div>
 		);
 	}
-	if (section === "orders")
-		return (
-			<InfoNote>
-				Payment attempts belong to one order. Only verified, matching payments
-				can be fulfilled.{" "}
-				<Link to="/reconciliation">
-					Review payment exceptions <ArrowRight size={13} />
-				</Link>
-			</InfoNote>
-		);
+
 	return null;
 }
 
@@ -778,13 +627,13 @@ function RecordDetails({
 	section: RecordsSection;
 	row: Row;
 	data: AdminState;
-	onAction: (name: ActionName, id?: string) => void;
+	onAction: (name: RecordActionName, id?: string) => void;
 }) {
 	let content: ReactNode;
 	const actions: ReactNode[] = [];
 	const button = (
 		label: string,
-		name: ActionName,
+		name: RecordActionName,
 		danger = false,
 		disabled = false,
 	) => (
@@ -883,64 +732,6 @@ function RecordDetails({
 					user.status === "Active",
 				),
 			);
-	} else if (section === "orders") {
-		const order = data.orders.find((order) => order.id === row.id);
-		if (!order) return null;
-		const user = data.users.find((user) => user.id === order.userId);
-		content = (
-			<>
-				<Details
-					items={[
-						[
-							"Event",
-							<Link key="event" to={`/events?record=${order.eventId}`}>
-								{row.subtitle}
-							</Link>,
-						],
-						[
-							"Customer",
-							<Link key="customer" to={`/users?record=${order.userId}`}>
-								{user?.name}
-							</Link>,
-						],
-						["Tickets", String(order.tickets)],
-						["Ticket subtotal", money(order.subtotal)],
-						["Fee snapshot", money(order.fee)],
-						["Order total", money(total(order))],
-						["Received", money(order.received)],
-						["Created (WAT)", date(order.created, true)],
-					]}
-				/>
-				<h3 className="detail-heading">Payment history</h3>
-				<div className="payment-attempt">
-					<CreditCard size={20} />
-					<div>
-						<strong>
-							{order.attempts} payment{" "}
-							{order.attempts === 1 ? "attempt" : "attempts"}
-						</strong>
-						<p>
-							{order.received
-								? `${money(order.received)} verified as received`
-								: "No verified payment received"}
-						</p>
-					</div>
-				</div>
-				<InfoNote warning={order.status === "Needs resolution"}>
-					{order.status === "Needs resolution"
-						? "Payment requires review. Tickets have not been issued for this exception."
-						: "One order retains all its payment attempts. Its historical fee snapshot never changes."}
-				</InfoNote>
-				{order.status === "Needs resolution" && (
-					<Link
-						className="button button-primary"
-						to={`/reconciliation?record=${data.exceptions.find((exception) => exception.orderId === order.id)?.id}`}
-					>
-						Review exception <ArrowRight size={15} />
-					</Link>
-				)}
-			</>
-		);
 	} else if (section === "payouts") {
 		const payout = data.payouts.find((payout) => payout.id === row.id);
 		if (!payout) return null;
@@ -995,57 +786,6 @@ function RecordDetails({
 				</InfoNote>
 			</>
 		);
-	} else if (section === "reconciliation") {
-		const exception = data.exceptions.find(
-			(exception) => exception.id === row.id,
-		);
-		const order = data.orders.find((order) => order.id === exception?.orderId);
-		const event = data.events.find((event) => event.id === order?.eventId);
-		if (!exception || !order || !event) return null;
-		content = (
-			<>
-				<InfoNote warning>
-					{exception.type === "Late payment"
-						? "Payment arrived after the checkout hold expired. Capacity must be checked again."
-						: "The received amount does not match the order total. Do not issue tickets."}
-				</InfoNote>
-				<Details
-					items={[
-						[
-							"Order",
-							<Link key="order" to={`/orders?record=${order.id}`}>
-								{order.id}
-							</Link>,
-						],
-						["Event", event.name],
-						["Expected", money(total(order))],
-						["Received", money(order.received)],
-						["Currency", "NGN"],
-						["Tickets requested", String(order.tickets)],
-						["Available capacity", String(event.capacity - event.sold)],
-						[
-							"Payment match",
-							order.received === total(order)
-								? "Exact match"
-								: "Amount mismatch",
-						],
-					]}
-				/>
-			</>
-		);
-		if (exception.status === "Open") {
-			actions.push(
-				button(
-					"Fulfil manually",
-					"fulfil",
-					false,
-					order.received !== total(order) ||
-						event.status !== "Published" ||
-						event.capacity - event.sold < order.tickets,
-				),
-			);
-			actions.push(button("Start tracked refund", "start-refund", true));
-		}
 	} else if (section === "jobs") {
 		const job = data.jobs.find((job) => job.id === row.id);
 		if (!job) return null;
@@ -1116,291 +856,5 @@ function RecordDetails({
 				</>
 			)}
 		</>
-	);
-}
-
-function ActionForm({
-	action,
-	data,
-	onSubmit,
-	onCancel,
-}: {
-	action: Action;
-	data: AdminState;
-	onSubmit: (command: Command) => void;
-	onCancel: () => void;
-}) {
-	const { notice } = useAdmin();
-	const [feeType, setFeeType] = useState<"percentage" | "fixed">("percentage");
-	const [feeValue, setFeeValue] = useState("3.5");
-	const [confirmed, setConfirmed] = useState(false);
-	const exception = data.exceptions.find(
-		(exception) => exception.id === action.id,
-	);
-	const order = data.orders.find((order) => order.id === exception?.orderId);
-	const payout = data.payouts.find((payout) => payout.id === action.id);
-	const isFinancial = ["record", "fulfil", "start-refund", "fee"].includes(
-		action.name,
-	);
-	const defaultReason =
-		action.name === "retry"
-			? "Retry requested after reviewing failed delivery."
-			: action.name === "reconcile"
-				? "Manual payment reconciliation requested."
-				: "";
-	return (
-		<form
-			onSubmit={(event) => {
-				event.preventDefault();
-				const fields = new FormData(event.currentTarget);
-				const note = String(fields.get("note") || "");
-				const id = action.id || "";
-				let command: Command;
-				switch (action.name) {
-					case "suspend":
-					case "restore":
-					case "feature":
-						command = { type: "event", id, action: action.name, note };
-						break;
-					case "block":
-					case "unblock":
-						command = { type: "user", id, note };
-						break;
-
-					case "record":
-						command = {
-							type: "payout",
-							id,
-							reference: String(fields.get("reference") || ""),
-							note,
-						};
-						break;
-					case "fulfil":
-					case "start-refund":
-						command = {
-							type: "resolve",
-							id,
-							action: action.name === "fulfil" ? "fulfil" : "refund",
-							note,
-							capacityConfirmed: confirmed,
-						};
-						break;
-					case "retry":
-						command = { type: "retry", id: action.id, note };
-						break;
-					case "reconcile":
-						command = { type: "reconcile", note };
-						break;
-					case "provision":
-						command = {
-							type: "provision",
-							name: String(fields.get("name") || ""),
-							email: String(fields.get("email") || ""),
-							note,
-						};
-						break;
-					case "fee":
-						command = {
-							type: "fee",
-							feeType,
-							value:
-								feeType === "percentage"
-									? Number(feeValue)
-									: Math.round(Number(feeValue) * 100),
-							effective: `${String(fields.get("effective"))}:00+01:00`,
-							note,
-						};
-						break;
-				}
-				onSubmit(command);
-			}}
-		>
-			{payout && (
-				<Details
-					items={[
-						["Payout", payout.id],
-						["Amount", money(payout.amount)],
-						["Bank account", `${payout.bank} ${payout.account}`],
-					]}
-				/>
-			)}
-			{order && (
-				<Details
-					items={[
-						["Order", order.id],
-						["Received", money(order.received)],
-						["Expected", money(total(order))],
-					]}
-				/>
-			)}
-			{action.name === "provision" && (
-				<>
-					<label className="form-field">
-						Full name
-						<input
-							name="name"
-							required
-							minLength={2}
-							autoComplete="name"
-							placeholder="e.g. Amaka Eze"
-						/>
-					</label>
-					<label className="form-field">
-						Email address
-						<input
-							name="email"
-							type="email"
-							required
-							autoComplete="email"
-							placeholder="amaka@everyticket.ng"
-						/>
-					</label>
-				</>
-			)}
-			{action.name === "record" && (
-				<label className="form-field">
-					External transfer reference
-					<input
-						name="reference"
-						required
-						minLength={5}
-						placeholder="Enter the bank transfer reference"
-					/>
-					<span>Use the unique reference from the completed transfer.</span>
-				</label>
-			)}
-			{action.name === "fee" && (
-				<>
-					<div className="form-grid">
-						<label className="form-field">
-							Fee type
-							<select
-								value={feeType}
-								onChange={(event) => {
-									setFeeType(event.target.value as "fixed" | "percentage");
-									setFeeValue(
-										event.target.value === "percentage" ? "3.5" : "500",
-									);
-								}}
-							>
-								<option value="percentage">Percentage</option>
-								<option value="fixed">Fixed amount (NGN)</option>
-							</select>
-						</label>
-						<label className="form-field">
-							{feeType === "percentage" ? "Percentage (%)" : "Amount (₦)"}
-							<input
-								name="value"
-								type="number"
-								min="0"
-								max={feeType === "percentage" ? 100 : undefined}
-								step="0.01"
-								required
-								value={feeValue}
-								onChange={(event) => setFeeValue(event.target.value)}
-							/>
-						</label>
-					</div>
-					<label className="form-field">
-						Effective from (Africa/Lagos)
-						<input
-							name="effective"
-							type="datetime-local"
-							required
-							min={new Date(Date.now() + 3600000).toISOString().slice(0, 16)}
-						/>
-						<span>
-							Future orders only. Scheduled rules are not activated
-							automatically in the demo.
-						</span>
-					</label>
-					<InfoNote>
-						A ₦10,000 order would carry a{" "}
-						{money(
-							feeType === "percentage"
-								? Math.round((1000000 * (Number(feeValue) || 0)) / 100)
-								: Math.round((Number(feeValue) || 0) * 100),
-						)}{" "}
-						platform fee.
-					</InfoNote>
-				</>
-			)}
-			<label className="form-field">
-				{action.name === "record" ? "Transfer note" : "Reason / internal note"}
-				<textarea
-					name="note"
-					required
-					minLength={5}
-					rows={3}
-					defaultValue={defaultReason}
-					placeholder="Record the context and evidence for this decision…"
-				/>
-				<span>
-					At least 5 characters. This note is included in the audit log.
-				</span>
-			</label>
-			{action.name === "fulfil" && (
-				<label className="checkbox-field">
-					<input
-						type="checkbox"
-						checked={confirmed}
-						required
-						onChange={(event) => setConfirmed(event.target.checked)}
-					/>
-					<span>
-						I have verified safe capacity and the exact payment amount. Issue
-						tickets once.
-					</span>
-				</label>
-			)}
-			{isFinancial && action.name !== "fulfil" && (
-				<label className="checkbox-field">
-					<input
-						type="checkbox"
-						required
-						checked={confirmed}
-						onChange={(event) => setConfirmed(event.target.checked)}
-					/>
-					<span>
-						I have reviewed the details and want to record this decision in the
-						demo.
-					</span>
-				</label>
-			)}
-			{notice?.error && (
-				<p className="form-error" role="alert">
-					{notice.message}
-				</p>
-			)}
-			<div className="form-actions">
-				<button
-					type="button"
-					className="button button-secondary"
-					onClick={onCancel}
-				>
-					Cancel
-				</button>
-				<button
-					type="submit"
-					className={`button ${["suspend", "block"].includes(action.name) ? "button-danger" : "button-primary"}`}
-					disabled={(isFinancial || action.name === "fulfil") && !confirmed}
-				>
-					Confirm{" "}
-					{action.name === "fee"
-						? "schedule"
-						: action.name === "record"
-							? "record"
-							: action.name === "start-refund"
-								? "refund request"
-								: action.name === "feature"
-									? "change"
-									: action.name}
-					<ArrowRight size={15} />
-				</button>
-			</div>
-			<p className="form-disclaimer">
-				Demo only · no external messages, payments, or transfers.
-			</p>
-		</form>
 	);
 }

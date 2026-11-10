@@ -1,0 +1,22 @@
+const labels: Record<string, string> = {
+	ACTIVE: "Active",
+	BLOCKED: "Blocked",
+	DRAFT: "Draft",
+	PUBLISHED: "Published",
+	SUSPENDED: "Suspended",
+	CANCELLED: "Cancelled",
+	PENDING_PAYMENT: "Pending payment",
+	PAID: "Paid",
+	FAILED: "Failed",
+	EXPIRED: "Expired",
+	PAID_NEEDS_RESOLUTION: "Needs resolution",
+	REQUESTED: "Requested",
+	APPROVED: "Approved",
+	REJECTED: "Rejected",
+	PROCESSING: "Processing",
+	PROCESSED: "Completed",
+	CUSTOMER: "Customer",
+	ORGANIZER: "Organizer",
+	ADMIN: "Administrator",
+};
+export const statusLabel = (status: string) => labels[status] || status;

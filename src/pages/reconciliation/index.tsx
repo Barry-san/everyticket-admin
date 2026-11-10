@@ -1,5 +1,3 @@
-import RecordsPage from "@/features/admin/records";
+import { ReconciliationPage } from "@/features/admin/order-payment-workflows";
 
-export default function Page() {
-	return <RecordsPage section="reconciliation" />;
-}
+export default ReconciliationPage;

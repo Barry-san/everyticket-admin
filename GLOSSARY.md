@@ -12,6 +12,10 @@ _Avoid_: Organizer (when referring to the operator of this app)
 A person or organization that runs events on Everyticket and manages them through a separate organizer dashboard.
 _Avoid_: Administrator
 
+**Profile**:
+An application identity through which a person or organization participates as a customer, organizer, or administrator. The administrator interface may continue to label these records "Users."
+_Avoid_: User (in client domain and API code), account (when the role-bearing record is meant)
+
 **Event**:
 An experience published by an organizer and offered through Everyticket. Administrators may feature, suspend, or restore it.
 
