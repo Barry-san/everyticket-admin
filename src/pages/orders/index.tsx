@@ -1,5 +1,3 @@
-import RecordsPage from "@/features/admin/records";
+import { OrdersPage } from "@/features/admin/order-payment-workflows";
 
-export default function Page() {
-	return <RecordsPage section="orders" />;
-}
+export default OrdersPage;
