@@ -4,39 +4,75 @@ import type { RecordItem, Resource } from "./contracts";
 
 const sections: Record<Resource, Record<string, string[]>> = {
 	events: {
-		Identity: ["id", "title", "slug"],
-		Publication: ["status", "featured"],
-		Schedule: ["startAt", "endAt"],
+		Identity: ["id", "title", "slug", "description", "category"],
+		Location: ["city", "state", "venue", "address"],
+		Publication: [
+			"status",
+			"featured",
+			"publishedAt",
+			"suspendedAt",
+			"suspendedReason",
+			"cancelledAt",
+			"cancelledReason",
+		],
+		Schedule: ["startAt", "endAt", "timeZone"],
+		Configuration: ["ticketTypes", "media"],
+		Timestamps: ["createdAt", "updatedAt"],
 		Organizer: ["organizer"],
 	},
 	users: {
 		Identity: ["id", "user"],
-		Profile: ["role", "status", "createdAt"],
-		Blocking: ["blockedAt", "blockedByProfileId", "blockReason"],
+		Profile: ["role", "roles", "status", "createdAt", "updatedAt"],
+		Blocking: ["blockedAt", "blockedByProfileId", "blockedBy", "blockReason"],
 	},
 	orders: {
 		Booking: ["id", "reference", "status", "createdAt"],
-		Buyer: ["buyerName", "buyerEmail"],
+		Buyer: ["buyerName", "buyerEmail", "buyerPhone", "customerProfile"],
 		Event: ["event"],
-		Amounts: ["totalKobo"],
+		Amounts: [
+			"currency",
+			"ticketSubtotalKobo",
+			"platformFeeKobo",
+			"paystackFeeKobo",
+			"paystackChargeKobo",
+			"totalKobo",
+		],
+		"Fee snapshot": [
+			"platformFeeRuleId",
+			"platformFeeRuleVersion",
+			"platformFeeMode",
+			"platformFeePercentageBasisPoints",
+			"platformFeeFixedAmountKobo",
+		],
+		"Order lines": ["lines"],
+		"Payment timing": ["holdExpiresAt", "paidAt"],
 		"Payment attempts": ["paymentAttempts"],
 	},
 	refunds: {
 		Request: ["id", "status", "reason", "requestedAt"],
 		Amounts: ["ticketRefundKobo", "platformFeeRefundKobo", "totalRefundKobo"],
-		Review: ["reviewReason"],
+		Review: ["reviewReason", "reviewedAt", "reviewedByProfileId", "reviewer"],
+		Timestamps: ["createdAt", "updatedAt"],
 		"Gateway processing": [
 			"gatewayRefundReference",
 			"gatewayStatus",
 			"processedAt",
 		],
+		"Selected tickets": ["tickets"],
 		"Related identities": ["organizer", "event", "order"],
 	},
 	payouts: {
 		Request: ["id", "status", "requestedAt"],
 		"Organizer and event": ["organizer", "event"],
-		"Payable amounts": ["requestedAmountKobo", "calculatedPayableKobo"],
-		Review: ["reviewReason"],
+		"Payable amounts": [
+			"ticketSubtotalKobo",
+			"reservedRefundKobo",
+			"priorPaidKobo",
+			"requestedAmountKobo",
+			"calculatedPayableKobo",
+		],
+		Review: ["reviewReason", "reviewedAt", "reviewedByProfileId", "reviewer"],
+		Timestamps: ["createdAt", "updatedAt"],
 		Transfer: ["transferReference", "transferDate", "paidAt"],
 	},
 	"fee-rules": {
@@ -44,11 +80,13 @@ const sections: Record<Resource, Record<string, string[]>> = {
 		Calculation: ["mode", "percentageBasisPoints", "fixedAmountKobo"],
 		Applicability: ["appliesToFreeOrder"],
 		"Effective dates": ["activeFrom", "activeUntil"],
+		Administration: ["createdAt", "changedByProfileId", "changedBy"],
 	},
 	audit: {
 		Action: ["id", "action"],
 		Target: ["targetType", "targetId"],
 		Timestamp: ["createdAt"],
+		Actor: ["actorProfileId", "actor"],
 		"Structured details": ["details"],
 	},
 };
@@ -100,7 +138,7 @@ function Value({ field, value }: { field: string; value: unknown }) {
 		return <Fields values={value as Record<string, unknown>} />;
 	if (typeof value === "number" && field.endsWith("Kobo"))
 		return <>{money(value)}</>;
-	if (typeof value === "number" && field === "percentageBasisPoints")
+	if (typeof value === "number" && field.endsWith("BasisPoints"))
 		return (
 			<>
 				{value} ({value / 100}%)
