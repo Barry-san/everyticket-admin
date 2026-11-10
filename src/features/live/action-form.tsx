@@ -1,3 +1,4 @@
+import { Spinner } from "@/components/ui/spinner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { api } from "@/lib/api";
@@ -75,21 +76,24 @@ export function ActionForm({
 					{errorMessage(mutation.error)}
 				</p>
 			)}
-			<button
-				type="button"
-				className="button"
-				disabled={mutation.isPending}
-				onClick={close}
-			>
-				Cancel
-			</button>
-			<button
-				type="submit"
-				className="button button-primary"
-				disabled={mutation.isPending}
-			>
-				{mutation.isPending ? "Saving…" : "Confirm"}
-			</button>
+			<div className="form-actions">
+				<button
+					type="button"
+					className="button"
+					disabled={mutation.isPending}
+					onClick={close}
+				>
+					Cancel
+				</button>
+				<button
+					type="submit"
+					className="button button-primary"
+					disabled={mutation.isPending}
+				>
+					{mutation.isPending && <Spinner aria-hidden="true" />}
+					{mutation.isPending ? "Saving…" : "Confirm"}
+				</button>
+			</div>
 		</form>
 	);
 }

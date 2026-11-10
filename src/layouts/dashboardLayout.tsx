@@ -1,3 +1,4 @@
+import { Spinner } from "@/components/ui/spinner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
 	CreditCard,
@@ -114,6 +115,7 @@ export default function DashboardLayout() {
 	if (session.status === "loading" || !profile.data)
 		return (
 			<div className="access-screen" role="status">
+				<Spinner aria-hidden="true" />
 				Checking administrator access…
 			</div>
 		);
@@ -178,6 +180,7 @@ export default function DashboardLayout() {
 						disabled={signingOut}
 						onClick={signOut}
 					>
+						{signingOut && <Spinner aria-hidden="true" />}
 						{signingOut ? "Signing out…" : "Sign out"}
 					</button>
 				</header>

@@ -1,3 +1,4 @@
+import { Spinner } from "@/components/ui/spinner";
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Badge, downloadCsv, Modal } from "@/features/admin/components";
@@ -82,9 +83,12 @@ export default function LiveRecords({ resource }: { resource: Resource }) {
 					)}
 				</div>
 				{query.isPending ? (
-					<p role="status">Loading records…</p>
+					<div className="records-state" role="status">
+						<Spinner aria-hidden="true" />
+						<span>Loading records…</span>
+					</div>
 				) : query.isError ? (
-					<div role="alert">
+					<div className="records-state records-state-error" role="alert">
 						<p>{errorMessage(query.error)}</p>
 						<button
 							type="button"
@@ -211,16 +215,18 @@ export default function LiveRecords({ resource }: { resource: Resource }) {
 					onClose={() => update("record", "")}
 				>
 					<RecordDetail record={selected} />
-					{actionsFor(resource, selected).map((item) => (
-						<button
-							type="button"
-							key={item.label}
-							className="button button-primary"
-							onClick={() => setAction(item)}
-						>
-							{item.label}
-						</button>
-					))}
+					<div className="detail-actions">
+						{actionsFor(resource, selected).map((item) => (
+							<button
+								type="button"
+								key={item.label}
+								className="button button-primary"
+								onClick={() => setAction(item)}
+							>
+								{item.label}
+							</button>
+						))}
+					</div>
 				</Modal>
 			)}
 			{action && (

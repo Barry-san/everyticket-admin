@@ -1,3 +1,4 @@
+import { Spinner } from "@/components/ui/spinner";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Suspense } from "react";
 import { BrowserRouter } from "react-router-dom";
@@ -13,6 +14,7 @@ function App() {
 				<Suspense
 					fallback={
 						<div className="access-screen" role="status">
+							<Spinner aria-hidden="true" />
 							Loading Everyticket…
 						</div>
 					}

@@ -1,3 +1,4 @@
+import { Spinner } from "@/components/ui/spinner";
 import { useQuery } from "@tanstack/react-query";
 import {
 	ArrowUpRight,
@@ -73,8 +74,9 @@ export default function Overview() {
 				</div>
 			</div>
 			{query.isPending ? (
-				<div className="overview-state" role="status">
-					Loading your platform summary…
+				<div className="overview-state loading-state" role="status">
+					<Spinner aria-hidden="true" />
+					<span>Loading your platform summary…</span>
 				</div>
 			) : query.isError ? (
 				<div className="overview-state" role="alert">

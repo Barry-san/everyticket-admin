@@ -1,3 +1,4 @@
+import { Spinner } from "@/components/ui/spinner";
 import { ArrowRight, LockKeyhole } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -98,7 +99,11 @@ export default function Login() {
 						disabled={pending}
 					>
 						{pending ? "Signing in…" : "Sign in"}
-						<ArrowRight size={16} />
+						{pending ? (
+							<Spinner aria-hidden="true" />
+						) : (
+							<ArrowRight size={16} />
+						)}
 					</button>
 				</form>
 				<p className="login-caption">
