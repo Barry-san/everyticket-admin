@@ -10,7 +10,7 @@
 		"lint": "biome lint src tests e2e playwright.config.ts vite.config.ts",
 		"format": "biome format --write src tests e2e playwright.config.ts vite.config.ts",
 		"preview": "vite preview",
-		"test": "bun test tests/live-contracts.test.ts tests/record-detail-api.test.ts",
+		"test": "bun test tests/live-contracts.test.ts tests/record-detail-api.test.ts tests/record-presentation.test.ts",
 		"test:e2e": "playwright test",
 		"test:e2e:details": "playwright test e2e/record-details.spec.ts",
 		"test:e2e:install": "playwright install chromium",
