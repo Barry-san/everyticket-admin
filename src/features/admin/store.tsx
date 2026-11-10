@@ -1,38 +1,47 @@
-import { createContext, type ReactNode, useContext, useState } from "react";
+import {
+  createContext,
+  type ReactNode,
+  useCallback,
+  useContext,
+  useRef,
+  useState,
+} from "react";
+import { Toast } from "./components";
 import { applyCommand } from "./commands";
 import { createSeed } from "./seed";
 import type { AdminState, Command } from "./types";
 
-type Notice = { message: string; error: boolean } | null;
+type Notice = { id: number; message: string; error: boolean } | null;
 type AdminContextValue = {
   data: AdminState;
   execute: (command: Command) => boolean;
   notice: Notice;
   dismiss: () => void;
-  notify: (message: string) => void;
+  notify: (message: string, error?: boolean) => void;
 };
 const AdminContext = createContext<AdminContextValue | null>(null);
 
 export function AdminProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState(createSeed);
   const [notice, setNotice] = useState<Notice>(null);
+  const sequence = useRef(0);
+  const dismiss = useCallback(() => setNotice(null), []);
+  const notify = useCallback((message: string, error = false) => {
+    setNotice({ id: ++sequence.current, message, error });
+  }, []);
   function execute(command: Command) {
     try {
       const next = applyCommand(data, command);
       setData(next);
-      setNotice({
-        message: `${next.audit[0].action}. Demo data updated.`,
-        error: false,
-      });
+      notify(`${next.audit[0].action}. Demo data updated.`);
       return true;
     } catch (error) {
-      setNotice({
-        message:
-          error instanceof Error
-            ? error.message
-            : "Unable to update this record.",
-        error: true,
-      });
+      notify(
+        error instanceof Error
+          ? error.message
+          : "Unable to update this record.",
+        true,
+      );
       return false;
     }
   }
@@ -42,11 +51,19 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         data,
         execute,
         notice,
-        dismiss: () => setNotice(null),
-        notify: (message) => setNotice({ message, error: false }),
+        dismiss,
+        notify,
       }}
     >
       {children}
+      {notice && (
+        <Toast
+          key={notice.id}
+          message={notice.message}
+          error={notice.error}
+          onClose={dismiss}
+        />
+      )}
     </AdminContext.Provider>
   );
 }

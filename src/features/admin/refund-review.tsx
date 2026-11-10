@@ -131,28 +131,32 @@ export default function RefundReviewPage() {
 	];
 
 	function exportRecords() {
-		downloadCsv(
-			"everyticket-refunds.csv",
-			[
-				"ID",
-				"Name",
-				"Details",
-				"Status",
-				"Category",
-				"Date (WAT)",
-				"Amount (NGN)",
-			],
-			records.filtered.map((row) => [
-				row.id,
-				row.title,
-				row.secondary || row.subtitle,
-				row.status,
-				row.category,
-				date(row.created, true),
-				((row.amount || 0) / 100).toFixed(2),
-			]),
-		);
-		notify(`Exported ${records.filtered.length} records.`);
+		try {
+			downloadCsv(
+				"everyticket-refunds.csv",
+				[
+					"ID",
+					"Name",
+					"Details",
+					"Status",
+					"Category",
+					"Date (WAT)",
+					"Amount (NGN)",
+				],
+				records.filtered.map((row) => [
+					row.id,
+					row.title,
+					row.secondary || row.subtitle,
+					row.status,
+					row.category,
+					date(row.created, true),
+					((row.amount || 0) / 100).toFixed(2),
+				]),
+			);
+			notify(`Exported ${records.filtered.length} records.`);
+		} catch {
+			notify("Unable to export records. Please try again.", true);
+		}
 	}
 
 	return (

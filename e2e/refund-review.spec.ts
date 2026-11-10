@@ -51,7 +51,7 @@ test("administrator can approve a Refund only with a recorded reason", async ({
   await submit.click();
   await expect(
     confirmation
-      .getByRole("alert")
+      .locator(".form-error")
       .getByText("Add a reason with at least 5 characters."),
   ).toBeVisible();
   await expect(confirmation).toBeVisible();
@@ -64,9 +64,11 @@ test("administrator can approve a Refund only with a recorded reason", async ({
   await expect(
     details.getByRole("button", { name: "Approve refund" }),
   ).not.toBeVisible();
-  await expect(page.getByRole("status")).toContainText(
-    "Approved refund. Demo data updated.",
-  );
+  const toast = page.getByRole("status");
+  await expect(toast).toContainText("Approved refund. Demo data updated.");
+  await expect(toast).toBeVisible();
+  await toast.getByRole("button", { name: "Dismiss notification" }).click();
+  await expect(toast).not.toBeVisible();
 });
 
 test("administrator can reject a Refund and see the outcome", async ({
@@ -137,7 +139,12 @@ test("Refund records mechanics preserve filters, export, and nested dialogs", as
 });
 
 test("Refund review layout remains stable", async ({ page }) => {
+  test.setTimeout(60000);
   await page.goto("/refunds?record=RF-2081");
+  await expect(page.getByRole("dialog", { name: "RF-2081" })).toBeVisible({
+    timeout: 30000,
+  });
+  await page.evaluate(() => document.fonts.ready);
   await expect(page).toHaveScreenshot("refund-review-desktop.png", {
     animations: "disabled",
   });

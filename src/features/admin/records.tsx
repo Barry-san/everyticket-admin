@@ -168,30 +168,34 @@ export default function RecordsPage({ section }: { section: RecordsSection }) {
 		status,
 	} = useRecords(rows);
 	function exportRecords() {
-		downloadCsv(
-			`everyticket-${section}.csv`,
-			[
-				"ID",
-				"Name",
-				"Details",
-				"Status",
-				"Category",
-				"Date (WAT)",
-				"Amount (NGN)",
-			],
-			filtered.map((row) => [
-				row.id,
-				row.title,
-				row.secondary || row.subtitle,
-				row.status,
-				row.category,
-				date(row.created, true),
-				row.amount === undefined ? "" : (row.amount / 100).toFixed(2),
-			]),
-		);
-		notify(
-			`Exported ${filtered.length} ${section === "audit" ? "audit entries" : "records"}.`,
-		);
+		try {
+			downloadCsv(
+				`everyticket-${section}.csv`,
+				[
+					"ID",
+					"Name",
+					"Details",
+					"Status",
+					"Category",
+					"Date (WAT)",
+					"Amount (NGN)",
+				],
+				filtered.map((row) => [
+					row.id,
+					row.title,
+					row.secondary || row.subtitle,
+					row.status,
+					row.category,
+					date(row.created, true),
+					row.amount === undefined ? "" : (row.amount / 100).toFixed(2),
+				]),
+			);
+			notify(
+				`Exported ${filtered.length} ${section === "audit" ? "audit entries" : "records"}.`,
+			);
+		} catch {
+			notify("Unable to export records. Please try again.", true);
+		}
 	}
 	const openAction = (name: ActionName, id?: string) => {
 		dismiss();

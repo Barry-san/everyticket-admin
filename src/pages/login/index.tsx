@@ -2,6 +2,7 @@ import { ArrowRight, LockKeyhole } from "lucide-react";
 import { useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { Brand } from "@/features/admin/components";
+import { useAdmin } from "@/features/admin/store";
 import { authClient } from "@/lib/auth";
 import { ENV } from "@/lib/env";
 
@@ -9,6 +10,11 @@ export default function Login() {
 	const [pending, setPending] = useState(false);
 	const [error, setError] = useState("");
 	const navigate = useNavigate();
+	const { notify } = useAdmin();
+	function reportError(message: string) {
+		setError(message);
+		notify(message, true);
+	}
 	if (ENV.DEMO_MODE) return <Navigate to="/overview" replace />;
 	return (
 		<main className="login-screen">
@@ -36,7 +42,7 @@ export default function Login() {
 					onSubmit={async (event) => {
 						event.preventDefault();
 						if (!ENV.VITE_AUTH_URL) {
-							setError(
+							reportError(
 								"Authentication is not configured. Set VITE_AUTH_URL before signing in.",
 							);
 							return;
@@ -50,13 +56,16 @@ export default function Login() {
 								password: String(fields.get("password")),
 							});
 							if (response.error)
-								setError(
+								reportError(
 									response.error.message ||
 										"Unable to sign in. Check your credentials.",
 								);
-							else navigate("/overview", { replace: true });
+							else {
+								notify("Signed in successfully.");
+								navigate("/overview", { replace: true });
+							}
 						} catch {
-							setError(
+							reportError(
 								"Unable to reach the authentication service. Please try again.",
 							);
 						} finally {

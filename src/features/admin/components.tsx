@@ -8,6 +8,7 @@ import {
   X,
 } from "lucide-react";
 import { type ReactNode, useEffect, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 export function Brand({ compact = false }: { compact?: boolean }) {
   return (
@@ -392,17 +393,46 @@ export function Toast({
   error: boolean;
   onClose: () => void;
 }) {
+  const [container, setContainer] = useState<Element>(document.body);
+  const [paused, setPaused] = useState(false);
   useEffect(() => {
+    // Modal dialogs occupy the browser's top layer, above any z-index.
+    const updateContainer = () => {
+      const dialogs = document.querySelectorAll("dialog[open]");
+      setContainer(dialogs[dialogs.length - 1] || document.body);
+    };
+    updateContainer();
+    const observer = new MutationObserver(updateContainer);
+    observer.observe(document.body, {
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["open"],
+      childList: true,
+    });
+    return () => observer.disconnect();
+  }, []);
+  useEffect(() => {
+    if (error || paused) return;
     const timeout = window.setTimeout(onClose, 6500);
     return () => window.clearTimeout(timeout);
-  }, [onClose]);
-  return (
+  }, [error, paused, onClose]);
+  return createPortal(
+    // biome-ignore lint/a11y/noStaticElementInteractions: Hover and focus only pause dismissal; the notification is not an interactive control.
     <div
       className={`toast ${error ? "toast-error" : ""}`}
       role={error ? "alert" : "status"}
+      aria-atomic="true"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onFocus={() => setPaused(true)}
+      onBlur={() => setPaused(false)}
     >
       <span className="toast-symbol">
-        {error ? <X size={18} /> : <Check size={18} />}
+        {error ? (
+          <X size={18} aria-hidden="true" />
+        ) : (
+          <Check size={18} aria-hidden="true" />
+        )}
       </span>
       <span>{message}</span>
       <button
@@ -413,7 +443,8 @@ export function Toast({
       >
         <X size={16} />
       </button>
-    </div>
+    </div>,
+    container,
   );
 }
 

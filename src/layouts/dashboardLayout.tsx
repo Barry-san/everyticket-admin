@@ -18,14 +18,20 @@ import {
   Wallet,
 } from "lucide-react";
 import { Suspense, useEffect, useState } from "react";
-import { Link, Navigate, NavLink, Outlet, useLocation } from "react-router-dom";
+import {
+  Link,
+  Navigate,
+  NavLink,
+  Outlet,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
 import {
   Badge,
   Brand,
   Empty,
   Modal,
   SearchInput,
-  Toast,
 } from "@/features/admin/components";
 import { initials } from "@/features/admin/format";
 import { getRows } from "@/features/admin/selectors";
@@ -114,7 +120,9 @@ function Workspace({
   name?: string;
   email?: string;
 }) {
-  const { data, notice, dismiss, notify } = useAdmin();
+  const { data, notify } = useAdmin();
+  const navigate = useNavigate();
+  const [signingOut, setSigningOut] = useState(false);
   const [navigation, setNavigation] = useState(false);
   const [search, setSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -438,26 +446,33 @@ function Workspace({
           <button
             type="button"
             className="button button-danger"
+            disabled={signingOut}
             onClick={async () => {
-              const response = await authClient.signOut();
-              if (response.error)
-                notify("Unable to sign out. Please try again.");
-              else window.location.assign("/login");
+              if (signingOut) return;
+              setSigningOut(true);
+              try {
+                const response = await authClient.signOut();
+                if (response.error) {
+                  notify("Unable to sign out. Please try again.", true);
+                } else {
+                  notify("Signed out successfully.");
+                  navigate("/login", { replace: true });
+                }
+              } catch {
+                notify(
+                  "Unable to reach the authentication service. Please try again.",
+                  true,
+                );
+              } finally {
+                setSigningOut(false);
+              }
             }}
           >
             <LogOut size={16} />
-            Sign out
+            {signingOut ? "Signing out…" : "Sign out"}
           </button>
         )}
       </Modal>
-      {notice && (
-        <Toast
-          key={notice.message}
-          message={notice.message}
-          error={notice.error}
-          onClose={dismiss}
-        />
-      )}
     </div>
   );
 }
