@@ -6,7 +6,7 @@ export function useBlockUser() {
 	return useMutation({
 		mutationFn: (profileId: string) =>
 			api.post(`/admin/users/${profileId}/suspend`),
-		onSuccess: () => toast.success("User suspended"),
+		onSuccess: () => toast.success("User blocked"),
 		onError: (e) => toast.error("Action failed", { description: e.message }),
 	});
 }

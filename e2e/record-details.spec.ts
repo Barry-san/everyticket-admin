@@ -399,3 +399,276 @@ test("direct entry requests only the detail endpoint without collection scans", 
 	).toBeVisible();
 	expect(paths).toEqual(["/api/v1/admin/orders/order_exact"]);
 });
+
+for (const mode of ["FIXED", "PERCENTAGE"]) {
+	test(`fee rules: add ${mode} from ${mode === "FIXED" ? "empty" : "populated"} page`, async ({
+		page,
+	}) => {
+		await mock(page);
+		let reads = 0;
+		const submissions: unknown[] = [];
+		await page.route(
+			/\/api\/v1\/admin\/platform-fee-rule(?:\?|$)/,
+			async (route) => {
+				if (route.request().method() === "POST") {
+					submissions.push(route.request().postDataJSON());
+					await new Promise((resolve) => setTimeout(resolve, 300));
+					return route.fulfill({
+						status: 201,
+						json: { id: "new_rule", version: 8, mode },
+					});
+				}
+				reads += 1;
+				return route.fulfill({
+					body: JSON.stringify(mode === "FIXED" ? null : records["fee-rules"]),
+					contentType: "application/json",
+				});
+			},
+		);
+		await page.goto("/fee-rules");
+		if (mode === "FIXED")
+			await expect(page.getByText("No records found.")).toBeVisible();
+		await page
+			.getByRole("button", { name: "Add fee rule", exact: true })
+			.click();
+		const dialog = page.getByRole("dialog");
+		await dialog.getByRole("combobox").selectOption(mode);
+		await dialog
+			.getByLabel("Fixed amount (kobo) or percentage (basis points)")
+			.fill("250");
+		await dialog
+			.getByLabel("Effective at (Africa/Lagos)")
+			.fill("2099-11-11T10:30");
+		await dialog.getByLabel("Reason", { exact: true }).fill("New fee schedule");
+		await dialog.getByRole("button", { name: "Confirm", exact: true }).click();
+		await expect(
+			dialog.getByRole("button", { name: "Saving…" }),
+		).toBeDisabled();
+		await expect(dialog).not.toBeVisible();
+		await expect(
+			page.locator('[data-sonner-toast][data-type="success"]'),
+		).toHaveCount(1);
+		await expect(
+			page.locator('[data-sonner-toast][data-type="success"]'),
+		).toContainText("Fee rule added");
+		await expect(
+			page.getByRole("link", { name: "View added fee rule" }),
+		).toHaveAttribute("href", /\/fee-rules\/new_rule/);
+		expect(submissions).toEqual([
+			{
+				mode,
+				[mode === "FIXED" ? "fixedAmountKobo" : "percentageBasisPoints"]: 250,
+				effectiveAt: "2099-11-11T09:30:00.000Z",
+				reason: "New fee schedule",
+			},
+		]);
+		expect(reads).toBeGreaterThan(1);
+		await page.getByRole("link", { name: "View added fee rule" }).click();
+		await expect(page.locator(".detail-sections")).toBeVisible();
+	});
+}
+
+test("fee rules: failed add preserves values and permits retry", async ({
+	page,
+}) => {
+	await mock(page);
+	let attempts = 0;
+	await page.route(/\/api\/v1\/admin\/platform-fee-rule(?:\?|$)/, (route) => {
+		if (route.request().method() !== "POST")
+			return route.fulfill({ json: records["fee-rules"] });
+		attempts += 1;
+		return attempts === 1
+			? route.fulfill({
+					status: 409,
+					json: { message: "A rule already starts at this time." },
+				})
+			: route.fulfill({
+					status: 201,
+					json: { id: "new_rule", version: 8, mode: "FIXED" },
+				});
+	});
+	await page.goto("/fee-rules");
+	await page.getByRole("button", { name: "Add fee rule", exact: true }).click();
+	const dialog = page.getByRole("dialog");
+	await dialog
+		.getByLabel("Fixed amount (kobo) or percentage (basis points)")
+		.fill("500");
+	await dialog
+		.getByLabel("Effective at (Africa/Lagos)")
+		.fill("2099-11-11T10:30");
+	await dialog.getByLabel("Reason", { exact: true }).fill("New fee schedule");
+	await dialog.getByRole("button", { name: "Confirm", exact: true }).click();
+	await expect(dialog.getByRole("alert")).toHaveText(
+		"A rule already starts at this time.",
+	);
+	await expect(
+		page.locator('[data-sonner-toast][data-type="error"]'),
+	).toHaveCount(1);
+	await expect(
+		page.locator('[data-sonner-toast][data-type="error"]'),
+	).toContainText("A rule already starts at this time.");
+	await expect(
+		page.locator('[data-sonner-toast][data-type="success"]'),
+	).toHaveCount(0);
+	await expect(dialog.getByLabel("Reason", { exact: true })).toHaveValue(
+		"New fee schedule",
+	);
+	await dialog
+		.getByLabel("Effective at (Africa/Lagos)")
+		.fill("2099-11-12T10:30");
+	await dialog.getByRole("button", { name: "Confirm", exact: true }).click();
+	await expect(dialog).not.toBeVisible();
+	await expect(
+		page.locator('[data-sonner-toast][data-type="success"]'),
+	).toHaveCount(1);
+	expect(attempts).toBe(2);
+});
+
+const actionScenarios = [
+	["users", "ACTIVE", "Block profile", "User blocked"],
+	["users", "BLOCKED", "Unblock profile", "User unblocked"],
+	["events", "PUBLISHED", "Suspend event", "Event suspended"],
+	["events", "SUSPENDED", "Restore event", "Event restored"],
+	["events", "PUBLISHED", "Feature event", "Event featured"],
+	["events", "PUBLISHED", "Remove feature", "Event feature removed"],
+	["refunds", "REQUESTED", "Approve refund", "Refund approved"],
+	["refunds", "REQUESTED", "Reject refund", "Refund rejected"],
+	["refunds", "APPROVED", "Execute refund", "Refund processing started"],
+	["refunds", "PROCESSING", "Reconcile refund", "Refund reconciled"],
+	[
+		"refunds",
+		"APPROVED",
+		"Record gateway completion",
+		"Gateway completion recorded",
+	],
+	["payouts", "REQUESTED", "Approve payout", "Payout approved"],
+	["payouts", "REQUESTED", "Reject payout", "Payout rejected"],
+	["payouts", "APPROVED", "Record transfer", "Payout transfer recorded"],
+	["fee-rules", "ACTIVE", "Replace active fee rule", "Fee rule replaced"],
+];
+for (const [resource, status, label, message] of actionScenarios) {
+	test(`action feedback: ${label}`, async ({ page }) => {
+		await mock(page);
+		const record = {
+			...records[resource],
+			status,
+			featured: label === "Remove feature",
+			gatewayRefundReference: "gateway_ref",
+		};
+		let submissions = 0;
+		await page.route(
+			`**/api/v1/admin/${endpoints[resource] || resource}/**`,
+			async (route) => {
+				if (route.request().method() !== "GET") {
+					submissions++;
+					await new Promise((resolve) => setTimeout(resolve, 200));
+				}
+				return route.fulfill({ json: record });
+			},
+		);
+		// Fee replacement targets the collection endpoint.
+		if (resource === "fee-rules")
+			await page.route("**/api/v1/admin/platform-fee-rule", (route) => {
+				submissions++;
+				return route.fulfill({ json: record });
+			});
+		await page.goto(`/${resource}/${records[resource].id}`);
+		await page.getByRole("button", { name: label, exact: true }).click();
+		const dialog = page.getByRole("dialog");
+		for (const input of await dialog.locator("input").all()) {
+			const type = await input.getAttribute("type");
+			await input.fill(
+				type === "datetime-local"
+					? "2099-11-11T10:30"
+					: type === "number"
+						? "100"
+						: "Reviewed reference",
+			);
+		}
+		await dialog.getByRole("button", { name: "Confirm", exact: true }).click();
+		await expect(dialog).not.toBeVisible();
+		const toasts = page.locator('[data-sonner-toast][data-type="success"]');
+		await expect(toasts).toHaveCount(1);
+		await expect(toasts).toContainText(message);
+		expect(submissions).toBe(1);
+	});
+}
+
+test("cancel and invalid action submissions produce no toasts or requests", async ({
+	page,
+}) => {
+	await mock(page);
+	let submissions = 0;
+	page.on("request", (request) => {
+		if (request.method() === "POST") submissions++;
+	});
+	await page.goto("/users/profile_exact");
+	await page.getByRole("button", { name: "Block profile" }).click();
+	const dialog = page.getByRole("dialog");
+	await dialog.getByRole("button", { name: "Confirm", exact: true }).click();
+	await expect(dialog.getByRole("alert")).toHaveText("Enter a valid value.");
+	await dialog.getByRole("button", { name: "Cancel" }).click();
+	await expect(dialog).not.toBeVisible();
+	await expect(page.locator("[data-sonner-toast]")).toHaveCount(0);
+	expect(submissions).toBe(0);
+});
+
+for (const width of [1440, 390]) {
+	test(`brand surfaces and form states at ${width}px`, async ({
+		page,
+	}, testInfo) => {
+		await page.setViewportSize({ width, height: 900 });
+		await page.goto("/login");
+		await expect(page.getByPlaceholder("you@everyticket.ng")).toBeVisible();
+		const primary = page.getByRole("button", { name: "Sign in" });
+		await expect(primary).toHaveCSS("background-color", "rgb(86, 0, 120)");
+		await primary.hover();
+		await expect(primary).toHaveCSS("background-color", "rgb(54, 0, 79)");
+		await page.getByLabel("Password", { exact: true }).focus();
+		await expect(page.getByLabel("Password", { exact: true })).toHaveCSS(
+			"outline-color",
+			"rgb(143, 34, 242)",
+		);
+		await page.screenshot({
+			animations: "disabled",
+			path: testInfo.outputPath(`login-${width}.png`),
+			fullPage: true,
+		});
+		await mock(page);
+		await page.route("**/api/v1/admin/summary", (route) =>
+			route.fulfill({
+				json: {
+					paidOrderCount: 12,
+					totalPaidKobo: 100000,
+					platformFeeRevenueKobo: 2500,
+					refundLiabilityKobo: 1000,
+					payoutLiabilityKobo: 5000,
+				},
+			}),
+		);
+		await page.goto("/overview");
+		await expect(page.locator(".overview-metric")).toHaveCount(5);
+		await page.screenshot({
+			animations: "disabled",
+			path: testInfo.outputPath(`overview-${width}.png`),
+			fullPage: true,
+		});
+		await page.goto("/fee-rules");
+		await expect(page.locator(".nav-item.active")).toContainText("Fee rules");
+		await page.screenshot({
+			animations: "disabled",
+			path: testInfo.outputPath(`list-${width}.png`),
+			fullPage: true,
+		});
+		await page
+			.getByRole("button", { name: "Add fee rule", exact: true })
+			.click();
+		await expect(page.getByLabel("Mode", { exact: true })).toBeVisible();
+		await expect(page.getByLabel("Effective at (Africa/Lagos)")).toBeVisible();
+		await page.screenshot({
+			animations: "disabled",
+			path: testInfo.outputPath(`dialog-${width}.png`),
+			fullPage: true,
+		});
+	});
+}
