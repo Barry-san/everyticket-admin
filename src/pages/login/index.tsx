@@ -1,21 +1,23 @@
 import { ArrowRight, LockKeyhole } from "lucide-react";
 import { useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import { Brand } from "@/features/admin/components";
-import { useAdmin } from "@/features/admin/store";
 import { authClient } from "@/lib/auth";
-import { ENV } from "@/lib/env";
 
 export default function Login() {
 	const [pending, setPending] = useState(false);
 	const [error, setError] = useState("");
 	const navigate = useNavigate();
-	const { notify } = useAdmin();
 	function reportError(message: string) {
 		setError(message);
-		notify(message, true);
+		toast.error(message);
 	}
-	if (ENV.DEMO_MODE) return <Navigate to="/overview" replace />;
+	const { register, handleSubmit } = useForm<{
+		email: string;
+		password: string;
+	}>();
 	return (
 		<main className="login-screen">
 			<div className="login-story">
@@ -39,21 +41,13 @@ export default function Login() {
 				<h1>Welcome back.</h1>
 				<p>Sign in with your administrator account.</p>
 				<form
-					onSubmit={async (event) => {
-						event.preventDefault();
-						if (!ENV.VITE_AUTH_URL) {
-							reportError(
-								"Authentication is not configured. Set VITE_AUTH_URL before signing in.",
-							);
-							return;
-						}
+					onSubmit={handleSubmit(async (fields) => {
 						setPending(true);
 						setError("");
-						const fields = new FormData(event.currentTarget);
 						try {
 							const response = await authClient.signIn.email({
-								email: String(fields.get("email")),
-								password: String(fields.get("password")),
+								email: fields.email,
+								password: fields.password,
 							});
 							if (response.error)
 								reportError(
@@ -61,7 +55,7 @@ export default function Login() {
 										"Unable to sign in. Check your credentials.",
 								);
 							else {
-								notify("Signed in successfully.");
+								toast.success("Signed in successfully.");
 								navigate("/overview", { replace: true });
 							}
 						} catch {
@@ -71,12 +65,12 @@ export default function Login() {
 						} finally {
 							setPending(false);
 						}
-					}}
+					})}
 				>
 					<label className="form-field">
 						Email address
 						<input
-							name="email"
+							{...register("email", { required: true })}
 							type="email"
 							required
 							autoComplete="username"
@@ -86,7 +80,7 @@ export default function Login() {
 					<label className="form-field">
 						Password
 						<input
-							name="password"
+							{...register("password", { required: true })}
 							type="password"
 							required
 							autoComplete="current-password"
