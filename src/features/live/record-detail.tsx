@@ -1,4 +1,3 @@
-import { Fragment } from "react";
 import { date, money } from "@/features/admin/format";
 import type { RecordItem, Resource } from "./contracts";
 
@@ -156,12 +155,15 @@ function Fields({ values }: { values: Record<string, unknown> }) {
 	return (
 		<dl className="record-detail">
 			{Object.entries(values).map(([key, value]) => (
-				<Fragment key={key}>
+				<div
+					className={`detail-field${(value !== null && typeof value === "object") || key === "description" ? " detail-field-wide" : ""}`}
+					key={key}
+				>
 					<dt>{label(key)}</dt>
 					<dd>
 						<Value field={key} value={value} />
 					</dd>
-				</Fragment>
+				</div>
 			))}
 		</dl>
 	);
@@ -186,10 +188,7 @@ export function RecordDetail({
 					? { "Additional details": Object.keys(extra) }
 					: {}),
 			}).map(([title, fields]) => (
-				<section
-					className={`panel detail-section${fields.length === 1 && fields[0] === "paymentAttempts" ? " detail-section-payments" : ""}`}
-					key={title}
-				>
+				<section className="panel detail-section" key={title}>
 					<h2>{title}</h2>
 					{fields.length === 1 && fields[0] === "paymentAttempts" ? (
 						<Value field="paymentAttempts" value={record.paymentAttempts} />
