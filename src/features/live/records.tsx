@@ -1,13 +1,17 @@
 import { Spinner } from "@/components/ui/spinner";
 import { useState } from "react";
 import { Link, Navigate, useSearchParams } from "react-router-dom";
-import { Badge, downloadCsv, Modal } from "@/features/admin/components";
+import { downloadCsv, Modal } from "@/features/admin/components";
 import { ActionForm } from "./action-form";
 import { addFeeRuleAction } from "./actions";
-import { date, money } from "@/features/admin/format";
 import { errorMessage, useRecords } from "./api";
 import { type Resource, resources } from "./contracts";
-import { statusLabel } from "./status";
+import { recordCsvRow } from "./record-presentation";
+import {
+	RecordFilters,
+	RecordPagination,
+	RecordsTable,
+} from "./records-components";
 export default function LiveRecords({ resource }: { resource: Resource }) {
 	const [addingRule, setAddingRule] = useState(false);
 	const [createdRuleId, setCreatedRuleId] = useState<string | null>(null);
@@ -53,21 +57,7 @@ export default function LiveRecords({ resource }: { resource: Resource }) {
 							downloadCsv(
 								`${resource}-current-page.csv`,
 								["ID", "Record", "Status", "Amount (kobo)"],
-								items.map((row) => [
-									row.id,
-									row.title ||
-										row.user?.name ||
-										row.reference ||
-										row.action ||
-										"",
-									row.status || row.role || "",
-									String(
-										row.totalKobo ??
-											row.totalRefundKobo ??
-											row.requestedAmountKobo ??
-											"",
-									),
-								]),
+								items.map(recordCsvRow),
 							)
 						}
 					>
@@ -84,28 +74,7 @@ export default function LiveRecords({ resource }: { resource: Resource }) {
 				</p>
 			)}
 			<section className="panel records-panel">
-				<div className="table-toolbar">
-					{(resource === "users" || resource === "orders") && (
-						<input
-							aria-label="Search records"
-							placeholder="Search records…"
-							value={search.get("q") || ""}
-							onChange={(event) => update("q", event.target.value)}
-						/>
-					)}
-					{config.statuses.length > 0 && (
-						<select
-							aria-label="Status"
-							value={search.get("status") || ""}
-							onChange={(event) => update("status", event.target.value)}
-						>
-							<option value="">All statuses</option>
-							{config.statuses.map((status) => (
-								<option key={status}>{status}</option>
-							))}
-						</select>
-					)}
-				</div>
+				<RecordFilters resource={resource} search={search} update={update} />
 				{query.isPending ? (
 					<div className="records-state" role="status">
 						<Spinner aria-hidden="true" />
@@ -124,107 +93,16 @@ export default function LiveRecords({ resource }: { resource: Resource }) {
 					</div>
 				) : (
 					<>
-						<table>
-							<thead>
-								<tr>
-									<th>Record</th>
-									<th>Status</th>
-									<th>Amount / detail</th>
-									<th>Date (WAT)</th>
-									<th />
-								</tr>
-							</thead>
-							<tbody>
-								{items.map((row) => (
-									<tr key={row.id}>
-										<td>
-											<strong>
-												{row.title ||
-													row.user?.name ||
-													row.reference ||
-													row.action ||
-													(row.version ? `Version ${row.version}` : row.id)}
-											</strong>
-											<p>
-												{row.user?.email ||
-													row.buyerEmail ||
-													row.event?.title ||
-													row.targetId ||
-													row.organizer?.user.name}
-											</p>
-										</td>
-										<td>
-											<Badge
-												status={statusLabel(
-													row.status ||
-														row.role ||
-														(resource === "fee-rules" ? "Active" : "Recorded"),
-												)}
-											/>
-										</td>
-										<td>
-											{row.totalKobo !== undefined
-												? money(row.totalKobo)
-												: row.totalRefundKobo !== undefined
-													? money(row.totalRefundKobo)
-													: row.requestedAmountKobo !== undefined
-														? money(row.requestedAmountKobo)
-														: row.mode === "FIXED"
-															? money(row.fixedAmountKobo || 0)
-															: row.mode === "PERCENTAGE"
-																? `${(row.percentageBasisPoints || 0) / 100}%`
-																: row.organizer?.user.name || "—"}
-										</td>
-										<td>
-											{row.createdAt ||
-											row.requestedAt ||
-											row.startAt ||
-											row.activeFrom
-												? date(
-														(row.createdAt ||
-															row.requestedAt ||
-															row.startAt ||
-															row.activeFrom) as string,
-														true,
-													)
-												: "—"}
-										</td>
-										<td>
-											<Link className="text-link" to={detailUrl(row.id)}>
-												View details
-											</Link>
-										</td>
-									</tr>
-								))}
-							</tbody>
-						</table>
+						<RecordsTable
+							items={items}
+							resource={resource}
+							detailUrl={detailUrl}
+						/>
 						{!items.length && <p className="empty-state">No records found.</p>}
-						<div className="table-toolbar">
-							<span>{query.data?.total || 0} records</span>
-							<button
-								type="button"
-								className="button"
-								disabled={(query.data?.page || 1) <= 1}
-								onClick={() =>
-									update("page", String((query.data?.page || 1) - 1))
-								}
-							>
-								Previous
-							</button>
-							<button
-								type="button"
-								className="button"
-								disabled={
-									!query.data ||
-									query.data.page * query.data.pageSize >= query.data.total
-								}
-								onClick={() =>
-									update("page", String((query.data?.page || 1) + 1))
-								}
-							>
-								Next
-							</button>
-						</div>
+						<RecordPagination
+							data={query.data}
+							onPage={(page) => update("page", String(page))}
+						/>
 					</>
 				)}
 			</section>

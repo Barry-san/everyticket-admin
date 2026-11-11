@@ -27,8 +27,8 @@ export const addFeeRuleAction: Action = {
 	path: "/admin/platform-fee-rule",
 	fields: ["mode", "feeValue", "effectiveAt", "reason"],
 };
-export function actionsFor(resource: Resource, row: RecordItem): Action[] {
-	const action = (
+function recordAction(endpoint: string, id: string) {
+	return (
 		label: string,
 		suffix: string,
 		successMessage: string,
@@ -37,91 +37,121 @@ export function actionsFor(resource: Resource, row: RecordItem): Action[] {
 		label,
 		successMessage,
 		method: "post",
-		path: `/admin/${resource === "refunds" ? "refund-requests" : resource === "payouts" ? "payout-requests" : resource}/${encodeURIComponent(row.id)}/${suffix}`,
+		path: `/admin/${endpoint}/${encodeURIComponent(id)}/${suffix}`,
 		fields,
 	});
-	if (resource === "events") {
-		if (row.status === "PUBLISHED")
-			return [
-				action("Suspend event", "suspend", "Event suspended", ["reason"]),
-				{
-					...action(
-						row.featured ? "Remove feature" : "Feature event",
-						"featured",
-						row.featured ? "Event feature removed" : "Event featured",
-					),
-					method: "patch",
-					fixed: { featured: !row.featured },
-				},
-			];
-		if (row.status === "SUSPENDED")
-			return [action("Restore event", "restore", "Event restored")];
-	}
-	if (resource === "users" && row.role !== "ADMIN")
+}
+function eventActions(row: RecordItem): Action[] {
+	const action = recordAction("events", row.id);
+
+	if (row.status === "PUBLISHED")
 		return [
-			action(
-				row.status === "BLOCKED" ? "Unblock profile" : "Block profile",
-				row.status === "BLOCKED" ? "unblock" : "block",
-				row.status === "BLOCKED" ? "User unblocked" : "User blocked",
-				row.status === "BLOCKED" ? [] : ["reason"],
-			),
-		];
-	if (resource === "refunds") {
-		if (row.status === "REQUESTED")
-			return [
-				action("Approve refund", "approve", "Refund approved", [
-					"ticketRefundKobo",
-					"platformFeeRefundKobo",
-					"reason",
-				]),
-				action("Reject refund", "reject", "Refund rejected", ["reason"]),
-			];
-		if (row.status === "APPROVED")
-			return [
-				action("Execute refund", "execute", "Refund processing started"),
-				action(
-					"Record gateway completion",
-					"mark-processed",
-					"Gateway completion recorded",
-					["gatewayRefundReference", "gatewayStatus"],
-				),
-			];
-		if (row.status === "PROCESSING" && row.gatewayRefundReference)
-			return [
-				action("Reconcile refund", "reconcile", "Refund reconciled"),
-				action(
-					"Record gateway completion",
-					"mark-processed",
-					"Gateway completion recorded",
-					["gatewayRefundReference", "gatewayStatus"],
-				),
-			];
-	}
-	if (resource === "payouts") {
-		if (row.status === "REQUESTED")
-			return [
-				action("Approve payout", "approve", "Payout approved", ["reason"]),
-				action("Reject payout", "reject", "Payout rejected", ["reason"]),
-			];
-		if (row.status === "APPROVED")
-			return [
-				action("Record transfer", "mark-paid", "Payout transfer recorded", [
-					"transferReference",
-					"transferDate",
-				]),
-			];
-	}
-	if (resource === "fee-rules")
-		return [
+			action("Suspend event", "suspend", "Event suspended", ["reason"]),
 			{
-				label: "Replace active fee rule",
-				successMessage: "Fee rule replaced",
-				method: "put",
-				path: "/admin/platform-fee-rule",
-				fields: ["mode", "feeValue", "effectiveAt", "reason"],
+				...action(
+					row.featured ? "Remove feature" : "Feature event",
+					"featured",
+					row.featured ? "Event feature removed" : "Event featured",
+				),
+				method: "patch",
+				fixed: { featured: !row.featured },
 			},
 		];
+	if (row.status === "SUSPENDED")
+		return [action("Restore event", "restore", "Event restored")];
+
 	return [];
+}
+function refundActions(row: RecordItem): Action[] {
+	const action = recordAction("refund-requests", row.id);
+
+	if (row.status === "REQUESTED")
+		return [
+			action("Approve refund", "approve", "Refund approved", [
+				"ticketRefundKobo",
+				"platformFeeRefundKobo",
+				"reason",
+			]),
+			action("Reject refund", "reject", "Refund rejected", ["reason"]),
+		];
+	if (row.status === "APPROVED")
+		return [
+			action("Execute refund", "execute", "Refund processing started"),
+			gatewayCompletion(row.id),
+		];
+	if (row.status === "PROCESSING" && row.gatewayRefundReference)
+		return [
+			action("Reconcile refund", "reconcile", "Refund reconciled"),
+			gatewayCompletion(row.id),
+		];
+
+	return [];
+}
+function payoutActions(row: RecordItem): Action[] {
+	const action = recordAction("payout-requests", row.id);
+
+	if (row.status === "REQUESTED")
+		return [
+			action("Approve payout", "approve", "Payout approved", ["reason"]),
+			action("Reject payout", "reject", "Payout rejected", ["reason"]),
+		];
+	if (row.status === "APPROVED")
+		return [
+			action("Record transfer", "mark-paid", "Payout transfer recorded", [
+				"transferReference",
+				"transferDate",
+			]),
+		];
+
+	return [];
+}
+function gatewayCompletion(id: string): Action {
+	return recordAction("refund-requests", id)(
+		"Record gateway completion",
+		"mark-processed",
+		"Gateway completion recorded",
+		["gatewayRefundReference", "gatewayStatus"],
+	);
+}
+function profileActions(row: RecordItem): Action[] {
+	if (row.role === "ADMIN") return [];
+	const action = recordAction("users", row.id);
+	const blocked = row.status === "BLOCKED";
+	return [
+		action(
+			blocked ? "Unblock profile" : "Block profile",
+			blocked ? "unblock" : "block",
+			blocked ? "User unblocked" : "User blocked",
+			blocked ? [] : ["reason"],
+		),
+	];
+}
+function feeRuleActions(): Action[] {
+	return [
+		{
+			label: "Replace active fee rule",
+			successMessage: "Fee rule replaced",
+			method: "put",
+			path: "/admin/platform-fee-rule",
+			fields: ["mode", "feeValue", "effectiveAt", "reason"],
+		},
+	];
+}
+export function actionsFor(resource: Resource, row: RecordItem): Action[] {
+	switch (resource) {
+		case "events":
+			return eventActions(row);
+		case "users":
+			return profileActions(row);
+		case "refunds":
+			return refundActions(row);
+		case "payouts":
+			return payoutActions(row);
+		case "fee-rules":
+			return feeRuleActions();
+		default:
+			return [];
+	}
 }
 export function actionBody(action: Action, values: Record<string, string>) {
 	const body: Record<string, unknown> = { ...values, ...action.fixed };

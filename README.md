@@ -38,6 +38,6 @@ bun run lint
 bun run build
 ```
 
-The default test command runs the focused live-contract and record detail API checks. Run `bun run test:e2e:details` for the active-route browser suite with mocked API and authentication responses. Earlier demo screens, reducer fixtures, and browser tests remain in the working tree for reference because they contain pre-existing work; they are disconnected from the active routes and default validation. They should not be used to validate live backend integration.
+The default test command runs the focused live-contract, record detail API, and record presentation checks. Run `bun run test:e2e` (or `bun run test:e2e:details`) for the active-route browser suite with mocked API and authentication responses. Disconnected demo screens, reducer fixtures, and their obsolete tests have been removed.
 
 The backend has one focused credentialed-CORS HTTP check, alongside its existing auth-origin test. No production financial actions are exercised by these checks.

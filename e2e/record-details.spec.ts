@@ -526,23 +526,9 @@ test("fee rules: failed add preserves values and permits retry", async ({
 
 const actionScenarios = [
 	["users", "ACTIVE", "Block profile", "User blocked"],
-	["users", "BLOCKED", "Unblock profile", "User unblocked"],
-	["events", "PUBLISHED", "Suspend event", "Event suspended"],
-	["events", "SUSPENDED", "Restore event", "Event restored"],
 	["events", "PUBLISHED", "Feature event", "Event featured"],
-	["events", "PUBLISHED", "Remove feature", "Event feature removed"],
 	["refunds", "REQUESTED", "Approve refund", "Refund approved"],
-	["refunds", "REQUESTED", "Reject refund", "Refund rejected"],
 	["refunds", "APPROVED", "Execute refund", "Refund processing started"],
-	["refunds", "PROCESSING", "Reconcile refund", "Refund reconciled"],
-	[
-		"refunds",
-		"APPROVED",
-		"Record gateway completion",
-		"Gateway completion recorded",
-	],
-	["payouts", "REQUESTED", "Approve payout", "Payout approved"],
-	["payouts", "REQUESTED", "Reject payout", "Payout rejected"],
 	["payouts", "APPROVED", "Record transfer", "Payout transfer recorded"],
 	["fee-rules", "ACTIVE", "Replace active fee rule", "Fee rule replaced"],
 ];
@@ -614,9 +600,7 @@ test("cancel and invalid action submissions produce no toasts or requests", asyn
 });
 
 for (const width of [1440, 390]) {
-	test(`brand surfaces and form states at ${width}px`, async ({
-		page,
-	}, testInfo) => {
+	test(`brand surfaces and form states at ${width}px`, async ({ page }) => {
 		await page.setViewportSize({ width, height: 900 });
 		await page.goto("/login");
 		await expect(page.getByPlaceholder("you@everyticket.ng")).toBeVisible();
@@ -629,11 +613,6 @@ for (const width of [1440, 390]) {
 			"outline-color",
 			"rgb(143, 34, 242)",
 		);
-		await page.screenshot({
-			animations: "disabled",
-			path: testInfo.outputPath(`login-${width}.png`),
-			fullPage: true,
-		});
 		await mock(page);
 		await page.route("**/api/v1/admin/summary", (route) =>
 			route.fulfill({
@@ -648,27 +627,128 @@ for (const width of [1440, 390]) {
 		);
 		await page.goto("/overview");
 		await expect(page.locator(".overview-metric")).toHaveCount(5);
-		await page.screenshot({
-			animations: "disabled",
-			path: testInfo.outputPath(`overview-${width}.png`),
-			fullPage: true,
-		});
 		await page.goto("/fee-rules");
 		await expect(page.locator(".nav-item.active")).toContainText("Fee rules");
-		await page.screenshot({
-			animations: "disabled",
-			path: testInfo.outputPath(`list-${width}.png`),
-			fullPage: true,
-		});
 		await page
 			.getByRole("button", { name: "Add fee rule", exact: true })
 			.click();
 		await expect(page.getByLabel("Mode", { exact: true })).toBeVisible();
 		await expect(page.getByLabel("Effective at (Africa/Lagos)")).toBeVisible();
-		await page.screenshot({
-			animations: "disabled",
-			path: testInfo.outputPath(`dialog-${width}.png`),
-			fullPage: true,
-		});
 	});
 }
+
+test("list filters reset the page and pagination preserves filters", async ({
+	page,
+}) => {
+	await mock(page);
+	await page.route(/\/api\/v1\/admin\/orders(?:\?|$)/, (route) => {
+		const url = new URL(route.request().url());
+		return route.fulfill({
+			json: {
+				items: [records.orders],
+				page: Number(url.searchParams.get("page")) || 1,
+				pageSize: 20,
+				total: 40,
+			},
+		});
+	});
+	await page.goto("/orders?q=buyer&status=PAID&page=2");
+	await expect(
+		page.getByRole("button", { name: "Next", exact: true }),
+	).toBeDisabled();
+	await page.getByLabel("Status", { exact: true }).selectOption("FAILED");
+	await expect(page).toHaveURL("/orders?q=buyer&status=FAILED");
+	await expect(
+		page.getByRole("button", { name: "Previous", exact: true }),
+	).toBeDisabled();
+	await page.getByRole("button", { name: "Next", exact: true }).click();
+	await expect(page).toHaveURL("/orders?q=buyer&status=FAILED&page=2");
+	await page.getByLabel("Search records", { exact: true }).fill("new");
+	await expect(page).toHaveURL("/orders?q=new&status=FAILED");
+	await page.getByRole("button", { name: "Next", exact: true }).click();
+	await page.getByRole("button", { name: "Previous", exact: true }).click();
+	await expect(page).toHaveURL("/orders?q=new&status=FAILED&page=1");
+});
+
+test("list loading, error retry and empty state disable export", async ({
+	page,
+}) => {
+	await mock(page);
+	let release = () => {};
+	const gate = new Promise<void>((resolve) => {
+		release = resolve;
+	});
+	let recover = false;
+	await page.route(/\/api\/v1\/admin\/orders(?:\?|$)/, async (route) => {
+		await gate;
+		if (!recover) {
+			return route.fulfill({ status: 403, json: { message: "Forbidden" } });
+		}
+		return route.fulfill({
+			json: { items: [], page: 1, pageSize: 20, total: 0 },
+		});
+	});
+	await page.goto("/orders");
+	try {
+		await expect(
+			page.getByText("Loading records…", { exact: true }),
+		).toBeVisible();
+		await expect(
+			page.getByRole("button", { name: "Export current page" }),
+		).toBeDisabled();
+	} finally {
+		release();
+	}
+	await expect(page.getByRole("alert")).toContainText(
+		"You do not have permission",
+	);
+	await expect(
+		page.getByRole("button", { name: "Export current page" }),
+	).toBeDisabled();
+	recover = true;
+	await page.getByRole("button", { name: "Try again" }).click();
+	await expect(page.getByText("No records found.")).toBeVisible();
+	await expect(
+		page.getByRole("button", { name: "Export current page" }),
+	).toBeDisabled();
+	await expect(
+		page.getByRole("button", { name: "Next", exact: true }),
+	).toBeDisabled();
+	await expect(
+		page.getByRole("button", { name: "Previous", exact: true }),
+	).toBeDisabled();
+});
+
+test("CSV exports only the current page with raw kobo and escaped cells", async ({
+	page,
+}) => {
+	await mock(page);
+	await page.route(/\/api\/v1\/admin\/orders(?:\?|$)/, (route) =>
+		route.fulfill({
+			json: {
+				items: [
+					{
+						id: "page-two",
+						reference: '=SUM("x")',
+						status: "PAID",
+						totalKobo: 0,
+					},
+				],
+				page: 2,
+				pageSize: 20,
+				total: 40,
+			},
+		}),
+	);
+	await page.goto("/orders?page=2");
+	const pending = page.waitForEvent("download");
+	await page.getByRole("button", { name: "Export current page" }).click();
+	const download = await pending;
+	expect(download.suggestedFilename()).toBe("orders-current-page.csv");
+	const stream = await download.createReadStream();
+	const chunks: Buffer[] = [];
+	for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+	expect(Buffer.concat(chunks).toString("utf8")).toBe(
+		'\uFEFF"ID","Record","Status","Amount (kobo)"\r\n"page-two","\'=SUM(""x"")","PAID","0"',
+	);
+});

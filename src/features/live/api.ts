@@ -13,7 +13,7 @@ export function useRecords(resource: Resource, search: URLSearchParams) {
 		queryFn: ({ signal }) => fetchRecords(resource, search, signal),
 	});
 }
-export function recordParams(resource: Resource, search: URLSearchParams) {
+function recordParams(resource: Resource, search: URLSearchParams) {
 	return {
 		page: Math.max(1, Number(search.get("page")) || 1),
 		pageSize: 20,
@@ -25,7 +25,7 @@ export function recordParams(resource: Resource, search: URLSearchParams) {
 			: { status: search.get("status") || undefined }),
 	};
 }
-export async function fetchRecords(
+async function fetchRecords(
 	resource: Resource,
 	search: URLSearchParams,
 	signal?: AbortSignal,
