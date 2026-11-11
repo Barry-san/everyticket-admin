@@ -186,11 +186,18 @@ export function RecordDetail({
 					? { "Additional details": Object.keys(extra) }
 					: {}),
 			}).map(([title, fields]) => (
-				<section className="panel detail-section" key={title}>
+				<section
+					className={`panel detail-section${fields.length === 1 && fields[0] === "paymentAttempts" ? " detail-section-payments" : ""}`}
+					key={title}
+				>
 					<h2>{title}</h2>
-					<Fields
-						values={Object.fromEntries(fields.map((key) => [key, record[key]]))}
-					/>
+					{fields.length === 1 && fields[0] === "paymentAttempts" ? (
+						<Value field="paymentAttempts" value={record.paymentAttempts} />
+					) : (
+						<Fields
+							values={Object.fromEntries(fields.map((key) => [key, record[key]]))}
+						/>
+					)}
 				</section>
 			))}
 		</div>
