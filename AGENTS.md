@@ -8,6 +8,6 @@ Issues live as local markdown under `.scratch/<feature>/`. Read `docs/agents/iss
 
 Use the five default triage roles. Read `docs/agents/triage-labels.md` before assigning issue status.
 
-### Domain docs
+### Domain docs!
 
 Use a single-context layout. Read `docs/agents/domain.md` before exploring domain concepts or decisions.
